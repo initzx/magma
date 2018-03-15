@@ -1,4 +1,4 @@
-from ..player import Player
+from .player import Player
 from .node import Node
 
 
@@ -41,7 +41,7 @@ class Link:
         return self._player
 
     async def connect(self, channel):
-        pass
+
 
     async def disconnect(self):
         pass
