@@ -106,7 +106,8 @@ class Player:
         self.link.get_node(True).send(payload)
 
     async def node_changed(self):
-        pass
+        if self.track:
+            await self.play(self.track, self.position)
 
     async def trigger_event(self, event):
         await Player.internal_event_adapter.on_event(event)

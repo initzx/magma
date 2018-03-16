@@ -10,7 +10,7 @@ class NodeStats:
         self.msg = msg
 
         self.players = msg.get("players")
-        self.playingPlayers = msg.get("playingPlayers")
+        self.playing_players = msg.get("playingPlayers")
         self.uptime = msg.get("uptime")
 
         mem = msg.get("memory")
@@ -31,7 +31,7 @@ class NodeStats:
             self.avg_frame_nulled = frames.get("nulled")
             self.avg_frame_deficit = frames.get("deficit")
         else:
-            self.avg_frame_sent =  -1
+            self.avg_frame_sent = -1
             self.avg_frame_nulled = -1
             self.avg_frame_deficit = -1
 
@@ -42,21 +42,41 @@ class Node:
         self.lavalink = lavalink
         self.uri = uri
         self.headers = headers
+        self.available = False
         self.stats = None
         self.ws = None
 
     async def connect(self):
-        try:
-            with websockets.connect(self.uri, extra_headers=self.headers) as ws:
-                self.ws = ws
-                self.lavalink.loop.create_task(self.listen())
-        except Exception as e:
-            print(e)
+        with websockets.connect(self.uri, extra_headers=self.headers) as ws:
+            self.ws = ws
+            await self.on_open()
+            self.lavalink.loop.create_task(self.listen())
 
     async def listen(self):
-        while self.ws.open:
-            msg = await self.ws.recv()
-            await self.on_message(json.loads(msg))
+        try:
+            while self.ws.open:
+                msg = await self.ws.recv()
+                await self.on_message(json.loads(msg))
+        except websockets.ConnectionClosed as e:
+            await self.on_close(e.code, e.reason)
+
+    async def on_open(self):
+        print("Node connected")
+        self.available = True
+        self.lavalink.load_balancer.on_node_connect(self)
+
+    async def on_close(self, code, reason):
+        self.available = False
+        if not reason:
+            reason = "<no reason given>"
+
+        # we gotta use print for now until someone writes me good logging code
+        if code == 1000:
+            print(f"Connection to {self.uri} closed gracefully with reason: {reason}")
+        else:
+            print(f"Connection to {self.uri} closed unexpectedly with code: {code}, reason: {reason}")
+
+        await self.lavalink.load_balancer.on_node_disconnect(self)
 
     async def on_message(self, msg):
         """NOT DONE"""

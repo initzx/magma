@@ -6,6 +6,7 @@ from discord.ext.commands import BotMissingPermissions
 from .exceptions import IllegalAction
 from .node import Node
 from .player import Player
+from .load_balancing import LoadBalancer
 
 
 class Lavalink:
@@ -14,6 +15,7 @@ class Lavalink:
         self.loop = self.bot.loop
         self.user_id = bot.user.id
         self.shard_count = bot.shard_count
+        self.load_balancer = LoadBalancer(self)
         self.nodes = {}
         self.links = {}
 
@@ -65,6 +67,7 @@ class Link:
         self.state = state
 
     async def connect(self, channel):
+        # We're using discord's websocket, no lavalink
         if not channel.guild == self.guild:
             raise InvalidArgument("The guild of the channel isn't the the same as the link's!")
         if channel.guild.unavailable:
@@ -89,6 +92,7 @@ class Link:
         await self.bot._connection._get_websocket(channel.guild.id).send_as_json(payload)
 
     async def disconnect(self):
+        # We're using discord's websocket, no lavalink
         payload = {
             "op": 4,
             "d": {

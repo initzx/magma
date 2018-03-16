@@ -1,1 +1,2 @@
 discord.py==1.0.0a1431+gd53c3a6
+websockets==3.4
