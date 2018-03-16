@@ -1,3 +1,5 @@
+import json
+
 import websockets
 
 
@@ -20,10 +22,14 @@ class Node:
     async def listen(self):
         while self.ws.open:
             msg = await self.ws.recv()
-            await self.on_message(msg)
+            await self.on_message(json.loads(msg))
 
     async def on_message(self, msg):
-        pass
+        """NOT DONE"""
+        op = msg.get("op")
+
+        if op == "playerUpdate":
+            pass
 
     async def send(self, msg):
         pass
