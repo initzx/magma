@@ -3,8 +3,8 @@ from abc import ABC, abstractmethod
 
 class Event(ABC):
     """
-    These event classes are similar to that of Lavaplayer
-    All business rules should be handled here
+    These event classes are similar to that of Lavaplayer's
+    All business rules should be handled using these and an EventAdapter
     """
     @abstractmethod
     def __init__(self, player):
@@ -50,7 +50,7 @@ class TrackStuckEvent(Event):
 
 class AbstractPlayerEventAdapter(ABC):
     """
-    This is a base event adapter people can put on their players by doing:
+    This is a base EventAdapter people can inherit to put on their players by doing:
 
     player.event_adapter = event_adapter
     """
