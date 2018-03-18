@@ -50,10 +50,9 @@ class Node:
         self.ws = None
 
     async def connect(self):
-        with websockets.connect(self.uri, extra_headers=self.headers) as ws:
-            self.ws = ws
-            await self.on_open()
-            self.lavalink.loop.create_task(self.listen())
+        self.ws = await websockets.connect(self.uri, extra_headers=self.headers)
+        await self.on_open()
+        self.lavalink.loop.create_task(self.listen())
 
     async def listen(self):
         try:
@@ -66,7 +65,7 @@ class Node:
     async def on_open(self):
         print("Node connected")
         self.available = True
-        self.lavalink.load_balancer.on_node_connect(self)
+        await self.lavalink.load_balancer.on_node_connect(self)
 
     async def on_close(self, code, reason):
         self.available = False
@@ -86,7 +85,7 @@ class Node:
         op = msg.get("op")
         if op == "playerUpdate":
             link = self.lavalink.get_link(msg.get("guildId"))
-            link.player.provide_state(msg.get("state"))
+            await link.player.provide_state(msg.get("state"))
         elif op == "stats":
             self.stats = NodeStats(msg)
         elif op == "event":
@@ -102,8 +101,8 @@ class Node:
 
     async def get_tracks(self, query):
         params = {"identifier": query}
-
-        async with aiohttp.ClientSession() as session:
+        headers = {"Authorization": self.headers["Authorization"]}
+        async with aiohttp.ClientSession(headers=headers) as session:
             async with session.get(self.rest_uri+"/loadtracks", params=params) as resp:
                 return await resp.json()
 

@@ -43,11 +43,12 @@ class Player:
 
         payload = {
             "op": "seek",
-            "guildId": self.link.guild.id,
+            "guildId": str(self.link.guild.id),
             "position": position
         }
 
-        self.link.get_node(True).send(payload)
+        node = await self.link.get_node(True)
+        await node.send(payload)
 
     async def set_paused(self, pause):
         if pause == self.paused:
@@ -55,11 +56,12 @@ class Player:
 
         payload = {
             "op": "pause",
-            "guildId": self.link.guild.id,
+            "guildId": str(self.link.guild.id),
             "pause": pause,
         }
 
-        self.link.get_node(True).send(payload)
+        node = await self.link.get_node(True)
+        await node.send(payload)
         self.paused = pause
 
         if pause:
@@ -73,11 +75,12 @@ class Player:
 
         payload = {
             "op": "volume",
-            "guildId": self.link.guild.id,
+            "guildId": str(self.link.guild.id),
             "volume": volume,
         }
 
-        self.link.get_node(True).send(payload)
+        node = await self.link.get_node(True)
+        await node.send(payload)
         self.volume = volume
 
     async def provide_state(self, state):
@@ -87,12 +90,13 @@ class Player:
     async def play(self, track, position=0):
         payload = {
             "op": "play",
-            "guildId": self.link.guild.id,
+            "guildId": str(self.link.guild.id),
             "track": track.encoded_track,
             "startTime": position,
             "paused": self.paused
         }
-        self.link.get_node(True).send(payload)
+        node = await self.link.get_node(True)
+        await node.send(payload)
         self.update_time = time()*1000
         self.track = track
         await self.trigger_event(TrackStartEvent(self, track))
@@ -100,10 +104,11 @@ class Player:
     async def stop(self):
         payload = {
             "op": "stop",
-            "guildId": self.link.guild.id,
+            "guildId": str(self.link.guild.id),
         }
 
-        self.link.get_node(True).send(payload)
+        node = await self.link.get_node(True)
+        await node.send(payload)
 
     async def node_changed(self):
         if self.track:

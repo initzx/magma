@@ -5,7 +5,7 @@ from discord.ext.commands import BotMissingPermissions
 
 from .exceptions import IllegalAction
 from .node import Node
-from .player import Player
+from .player import Player, AudioTrack
 from .load_balancing import LoadBalancer
 
 
@@ -28,17 +28,23 @@ class Lavalink:
         self.nodes = {}
         self.links = {}
 
-        self.bot.add_listener(self.on_voice_update)
+        self.bot.add_listener(self.on_socket_response)
 
-    async def on_voice_update(self, data):
+    async def on_socket_response(self, data):
         if not data.get("t") in ("VOICE_SERVER_UPDATE", "VOICE_STATE_UPDATE"):
             return
-        link = self.links.get(str(data['d']['guild_id']))
-        await link.update_voice(data)
+        link = self.links.get(int(data['d']['guild_id']))
+        if link:
+            await link.update_voice(data)
 
-    def get_link(self, guild_id):
-        if not guild_id in self.links:
-            self.links[guild_id] = Link(self, guild_id)
+    def get_link(self, guild):
+        if guild.__class__ == str:  # PASSING IN DIFFERENT TYPES, REEEEEEEEEEEE, SOMEONE FIX THIS
+            guild_id = int(guild)
+        else:
+            guild_id = guild.id
+
+        if guild_id not in self.links:
+            self.links[guild_id] = Link(self, guild)
         return self.links[guild_id]
 
     async def add_node(self, name, uri, rest_uri, password):
@@ -53,7 +59,7 @@ class Lavalink:
         self.nodes[name] = node
 
     async def get_best_node(self, guild):
-        return self.load_balancer.determine_best_node(guild)
+        return await self.load_balancer.determine_best_node(guild)
 
 
 class Link:
@@ -88,7 +94,8 @@ class Link:
                 "guildId": data["d"]["guild_id"],
                 "sessionId": self.guild.me.voice.session_id
             })
-            await self.get_node(True).send(self.last_voice_update)
+            node = await self.get_node(True)
+            await node.send(self.last_voice_update)
             self.set_state(State.CONNECTED)
         else:  # data["t"] == "VOICE_STATE_UPDATE"
 
@@ -96,7 +103,7 @@ class Link:
             if int(data["d"]["user_id"]) != self.bot.user.id:
                 return
 
-            channel = self.guild.get_channel(int(data["d"]))
+            channel = self.guild.get_channel(int(data["d"]["channel_id"]))
             if not channel and self.state != State.DESTROYED:
                 self.state = State.NOT_CONNECTED
                 if self.node:
@@ -112,11 +119,11 @@ class Link:
             query = f"ytsearch:{query}"
         node = await self.get_node(True)
         tracks = await node.get_tracks(query)
-        return tracks
+        return [AudioTrack(track) for track in tracks]
 
     async def get_node(self, select_if_absent=False):
         if select_if_absent and not self.node:
-            self.node = self.lavalink.get_best_node(self.guild)
+            self.node = await self.lavalink.get_best_node(self.guild)
             if self.player:
                 await self.player.node_changed()
         return self.node
@@ -125,7 +132,7 @@ class Link:
         self.node = node
         if self.last_voice_update:
             await node.send(self.last_voice_update)
-            self.player.node_changed()
+            await self.player.node_changed()
 
     async def connect(self, channel):
         # We're using discord's websocket, no lavalink
