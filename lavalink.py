@@ -9,6 +9,15 @@ from .player import Player
 from .load_balancing import LoadBalancer
 
 
+class State(Enum):
+    NOT_CONNECTED = 0
+    CONNECTING = 1
+    CONNECTED = 2
+    DISCONNECTING = 3
+    DESTROYING = 4
+    DESTROYED = 5
+
+
 class Lavalink:
     def __init__(self, bot):
         self.bot = bot
@@ -18,6 +27,14 @@ class Lavalink:
         self.load_balancer = LoadBalancer(self)
         self.nodes = {}
         self.links = {}
+
+        self.bot.add_listener(self.on_voice_update)
+
+    async def on_voice_update(self, data):
+        if not data.get("t") in ("VOICE_SERVER_UPDATE", "VOICE_STATE_UPDATE"):
+            return
+        link = self.links.get(str(data['d']['guild_id']))
+        await link.update_voice(data)
 
     def get_link(self, guild_id):
         if not guild_id in self.links:
@@ -36,7 +53,7 @@ class Lavalink:
         self.nodes[name] = node
 
     async def get_best_node(self, guild):
-        pass
+        return self.load_balancer.determine_best_node(guild)
 
 
 class Link:
@@ -45,6 +62,7 @@ class Link:
         self.bot = self.lavalink.bot
         self.guild = guild
         self.state = State.NOT_CONNECTED
+        self.last_voice_update = {}
         self._player = None
         self.node = None
 
@@ -54,6 +72,40 @@ class Link:
             self._player = Player(self)
         return self._player
 
+    def set_state(self, state):
+        if self.state.value > 3 and state.value != 5:
+            raise IllegalAction(f"Cannot change the state to {state} when the state is {self.state}")
+        self.state = state
+
+    async def update_voice(self, data):
+        if not self.guild:  # is this even necessary? :thinking:
+            raise IllegalAction("Attempted to start audio connection with a guild that doesn't exist")
+
+        if data["t"] == "VOICE_SERVER_UPDATE":
+            self.last_voice_update.update({
+                "op": "voiceUpdate",
+                "event": data["d"],
+                "guildId": data["d"]["guild_id"],
+                "sessionId": self.guild.me.voice.session_id
+            })
+            await self.get_node(True).send(self.last_voice_update)
+            self.set_state(State.CONNECTED)
+        else:  # data["t"] == "VOICE_STATE_UPDATE"
+
+            # We're selfish and only care about ourselves
+            if int(data["d"]["user_id"]) != self.bot.user.id:
+                return
+
+            channel = self.guild.get_channel(int(data["d"]))
+            if not channel and self.state != State.DESTROYED:
+                self.state = State.NOT_CONNECTED
+                if self.node:
+                    payload = {
+                        "op": "destroy",
+                        "guildId": data["d"]["guildId"]
+                    }
+                    await self.node.send(payload)
+
     async def get_node(self, select_if_absent=False):
         if select_if_absent and not self.node:
             self.node = self.lavalink.get_best_node(self.guild)
@@ -61,10 +113,11 @@ class Link:
                 await self.player.node_changed()
         return self.node
 
-    def set_state(self, state):
-        if self.state.value > 3 and state.value != 5:
-            raise IllegalAction(f"Cannot change the state to {state} when the state is {self.state}")
-        self.state = state
+    async def change_node(self, node):
+        self.node = node
+        if self.last_voice_update:
+            await node.send(self.last_voice_update)
+            self.player.node_changed()
 
     async def connect(self, channel):
         # We're using discord's websocket, no lavalink
@@ -105,12 +158,3 @@ class Link:
 
         self.set_state(State.DISCONNECTING)
         await self.bot._connection._get_websocket(self.guild.id).send_as_json(payload)
-
-
-class State(Enum):
-    NOT_CONNECTED = 0
-    CONNECTING = 1
-    CONNECTED = 2
-    DISCONNECTING = 3
-    DESTROYING = 4
-    DESTROYED = 5

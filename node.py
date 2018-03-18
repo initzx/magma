@@ -3,6 +3,7 @@ import json
 import websockets
 
 from .events import TrackEndEvent, TrackStuckEvent, TrackExceptionEvent
+from .exceptions import IllegalAction
 
 
 class NodeStats:
@@ -93,7 +94,9 @@ class Node:
             pass
 
     async def send(self, msg):
-        pass
+        if not self.ws or not self.ws.open:
+            raise IllegalAction("Websocket is not ready, cannot send message")
+        await self.ws.send(json.dumps(msg))
 
     async def handle_event(self, msg):
         player = self.lavalink.get_link(msg.get("guildId")).player
