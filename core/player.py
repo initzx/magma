@@ -5,6 +5,9 @@ from .events import InternalEventAdapter, TrackPauseEvent, TrackResumeEvent, Tra
 
 
 class AudioTrack:
+    """
+    The base AudioTrack class that is used by the player to play songs
+    """
     def __init__(self, track):
         self.encoded_track = track['track']
         self.stream = track['info']['isStream']
@@ -30,12 +33,23 @@ class Player:
 
     @property
     def position(self):
+        # We're going to get the position of the current song
+        # There is a delay between each update so we gotta do some calculations
         if not self.paused:
             diff = time()*1000 - self.update_time
             return min(self._position + diff, self.track.duration)
         return min(self._position, self.track.duration)
 
+    async def provide_state(self, state):
+        self.update_time = state["time"]
+        self._position = state["position"]
+
     async def seek_to(self, position):
+        """
+        Sends a request to the Lavalink node to seek to a specific position
+        :param position: The position in seconds
+        :return:
+        """
         if not self.track:
             raise IllegalAction("Not playing anything right now")
         if not self.track.seekabble:
@@ -51,6 +65,11 @@ class Player:
         await node.send(payload)
 
     async def set_paused(self, pause):
+        """
+        Sends a request to the Lavalink node to set the paused state
+        :param pause: A boolean that indicates the pause state
+        :return:
+        """
         if pause == self.paused:
             return
 
@@ -70,6 +89,11 @@ class Player:
             await self.trigger_event(TrackResumeEvent(self))
 
     async def set_volume(self, volume):
+        """
+        Sends a request to the Lavalink node to set the volume
+        :param volume: An integer from 0-150
+        :return:
+        """
         if not 0 <= volume <= 150:
             raise IllegalAction("Volume must be between 0-150")
 
@@ -83,11 +107,13 @@ class Player:
         await node.send(payload)
         self.volume = volume
 
-    async def provide_state(self, state):
-        self.update_time = state["time"]
-        self._position = state["position"]
-
     async def play(self, track, position=0):
+        """
+        Sends a request to the Lavalink node to play an AudioTrack
+        :param track: The AudioTrack to play
+        :param position: Optional; the position to start the song at
+        :return:
+        """
         payload = {
             "op": "play",
             "guildId": str(self.link.guild.id),
@@ -102,6 +128,10 @@ class Player:
         await self.trigger_event(TrackStartEvent(self, track))
 
     async def stop(self):
+        """
+        Sends a request to the Lavalink node to stop the player
+        :return:
+        """
         payload = {
             "op": "stop",
             "guildId": str(self.link.guild.id),
@@ -116,5 +146,5 @@ class Player:
 
     async def trigger_event(self, event):
         await Player.internal_event_adapter.on_event(event)
-        if self.event_adapter:
+        if self.event_adapter:  # If we defined our on adapter
             await self.event_adapter.on_event(event)

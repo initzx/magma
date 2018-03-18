@@ -2,6 +2,10 @@ from abc import ABC, abstractmethod
 
 
 class Event(ABC):
+    """
+    These event classes are similar to that of Lavaplayer
+    All business rules should be handled here
+    """
     @abstractmethod
     def __init__(self, player):
         self.player = player
@@ -45,6 +49,11 @@ class TrackStuckEvent(Event):
 
 
 class AbstractPlayerEventAdapter(ABC):
+    """
+    This is a base event adapter people can put on their players by doing:
+
+    player.event_adapter = event_adapter
+    """
     @abstractmethod
     async def track_pause(self, event: TrackPauseEvent):
         pass
@@ -87,6 +96,9 @@ class AbstractPlayerEventAdapter(ABC):
 
 
 class InternalEventAdapter(AbstractPlayerEventAdapter):
+    """
+    A default internal EventAdapter that only cares about track_end
+    """
     async def track_pause(self, event: TrackPauseEvent):
         pass
 

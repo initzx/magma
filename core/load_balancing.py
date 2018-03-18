@@ -3,7 +3,11 @@ from .exceptions import IllegalAction
 
 class LoadBalancer:
 
-    """TODO: add custom penalty support"""
+    """
+    TODO: add custom penalty support
+
+    The load balancer is copied from Fre_d's Java client, and works on somewhat the same way
+    """
 
     def __init__(self, lavalink):
         self.lavalink = lavalink
@@ -45,6 +49,7 @@ class Penalties:
         self.null_frame_penalty = 0
 
     async def get_total(self):
+        # hard maths
         stats = self.node.stats
         if not stats:
             return

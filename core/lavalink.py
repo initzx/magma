@@ -10,6 +10,7 @@ from .load_balancing import LoadBalancer
 
 
 class State(Enum):
+    # States the Link can be in
     NOT_CONNECTED = 0
     CONNECTING = 1
     CONNECTED = 2
@@ -38,6 +39,11 @@ class Lavalink:
             await link.update_voice(data)
 
     def get_link(self, guild):
+        """
+        Return a Link for the specified guild
+        :param guild: The guild for the Link
+        :return: A Link
+        """
         if guild.__class__ == str:  # PASSING IN DIFFERENT TYPES, REEEEEEEEEEEE, SOMEONE FIX THIS
             guild_id = int(guild)
         else:
@@ -48,6 +54,15 @@ class Lavalink:
         return self.links[guild_id]
 
     async def add_node(self, name, uri, rest_uri, password):
+        """
+        Add a Lavalink node
+
+        :param name: The name of the node
+        :param uri: The web socket URI of the node, ("ws://localhost:80")
+        :param rest_uri: The REST URI of the node, ("http://localhost:2333")
+        :param password: The password to connect to the node
+        :return: A node
+        """
         headers = {
             "Authorization": password,
             "Num-Shards": self.shard_count,
@@ -59,6 +74,12 @@ class Lavalink:
         self.nodes[name] = node
 
     async def get_best_node(self, guild):
+        """
+        Determines the best Node for a guild based on penalty calculations
+
+        :param guild: The guild
+        :return: A Node
+        """
         return await self.load_balancer.determine_best_node(guild)
 
 
@@ -115,6 +136,13 @@ class Link:
                 self.node = None
 
     async def get_tracks(self, query, ytsearch=True):
+        """
+        Get a list of AudioTracks from a query
+
+        :param query: The query to pass to the Node
+        :param ytsearch: A boolean that indicates if it should search on YouTube
+        :return:
+        """
         if ytsearch:
             query = f"ytsearch:{query}"
         node = await self.get_node(True)
@@ -122,6 +150,12 @@ class Link:
         return [AudioTrack(track) for track in tracks]
 
     async def get_node(self, select_if_absent=False):
+        """
+        Gets a Node for the link
+
+        :param select_if_absent: A boolean that indicates if a Node should be created if there is none
+        :return: A Node
+        """
         if select_if_absent and not self.node:
             self.node = await self.lavalink.get_best_node(self.guild)
             if self.player:
@@ -129,13 +163,25 @@ class Link:
         return self.node
 
     async def change_node(self, node):
+        """
+        Change to another node
+
+        :param node: The Node to change to
+        :return:
+        """
         self.node = node
         if self.last_voice_update:
             await node.send(self.last_voice_update)
             await self.player.node_changed()
 
     async def connect(self, channel):
-        # We're using discord's websocket, no lavalink
+        """
+        Connect to a voice channel
+
+        :param channel: The voice channel to connect to
+        :return:
+        """
+        # We're using discord's websocket, not lavalink
         if not channel.guild == self.guild:
             raise InvalidArgument("The guild of the channel isn't the the same as the link's!")
         if channel.guild.unavailable:
@@ -160,6 +206,11 @@ class Link:
         await self.bot._connection._get_websocket(channel.guild.id).send_as_json(payload)
 
     async def disconnect(self):
+        """
+        Disconnect from the current voice channel
+
+        :return:
+        """
         # We're using discord's websocket, no lavalink
         payload = {
             "op": 4,

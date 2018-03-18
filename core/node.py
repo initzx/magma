@@ -63,7 +63,7 @@ class Node:
             await self.on_close(e.code, e.reason)
 
     async def on_open(self):
-        print("Node connected")
+        print(f"Node connected: {self.name}")
         self.available = True
         await self.lavalink.load_balancer.on_node_connect(self)
 
@@ -81,7 +81,7 @@ class Node:
         await self.lavalink.load_balancer.on_node_disconnect(self)
 
     async def on_message(self, msg):
-        """NOT DONE"""
+        # We receive Lavalink responses here
         op = msg.get("op")
         if op == "playerUpdate":
             link = self.lavalink.get_link(msg.get("guildId"))
@@ -100,6 +100,7 @@ class Node:
         await self.ws.send(json.dumps(msg))
 
     async def get_tracks(self, query):
+        # Fetch tracks from the Lavalink node using its REST API
         params = {"identifier": query}
         headers = {"Authorization": self.headers["Authorization"]}
         async with aiohttp.ClientSession(headers=headers) as session:
@@ -107,6 +108,7 @@ class Node:
                 return await resp.json()
 
     async def handle_event(self, msg):
+        # Lavalink sends us track end event types
         player = self.lavalink.get_link(msg.get("guildId")).player
         event = None
         event_type = msg.get("type")
