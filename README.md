@@ -5,3 +5,4 @@ A LavaLink connector written in Python, translated from Fre_d's Java LavaLink cl
 * discord.py, rewrite
 * asyncio
 * websockets
+* aiohttp
