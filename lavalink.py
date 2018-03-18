@@ -41,14 +41,14 @@ class Lavalink:
             self.links[guild_id] = Link(self, guild_id)
         return self.links[guild_id]
 
-    async def add_node(self, name, uri, password):
+    async def add_node(self, name, uri, rest_uri, password):
         headers = {
             "Authorization": password,
             "Num-Shards": self.shard_count,
             "User-Id": self.user_id
         }
 
-        node = Node(self, name, uri, headers)
+        node = Node(self, name, uri, rest_uri, headers)
         await node.connect()
         self.nodes[name] = node
 
@@ -105,6 +105,14 @@ class Link:
                         "guildId": data["d"]["guildId"]
                     }
                     await self.node.send(payload)
+                self.node = None
+
+    async def get_tracks(self, query, ytsearch=True):
+        if ytsearch:
+            query = f"ytsearch:{query}"
+        node = await self.get_node(True)
+        tracks = await node.get_tracks(query)
+        return tracks
 
     async def get_node(self, select_if_absent=False):
         if select_if_absent and not self.node:

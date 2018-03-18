@@ -1,5 +1,6 @@
 import json
 
+import aiohttp
 import websockets
 
 from .events import TrackEndEvent, TrackStuckEvent, TrackExceptionEvent
@@ -38,10 +39,11 @@ class NodeStats:
 
 
 class Node:
-    def __init__(self, lavalink, name, uri, headers):
+    def __init__(self, lavalink, name, uri, rest_uri, headers):
         self.name = name
         self.lavalink = lavalink
         self.uri = uri
+        self.rest_uri = rest_uri
         self.headers = headers
         self.available = False
         self.stats = None
@@ -97,6 +99,13 @@ class Node:
         if not self.ws or not self.ws.open:
             raise IllegalAction("Websocket is not ready, cannot send message")
         await self.ws.send(json.dumps(msg))
+
+    async def get_tracks(self, query):
+        params = {"identifier": query}
+
+        async with aiohttp.ClientSession() as session:
+            async with session.get(self.rest_uri+"/loadtracks", params=params) as resp:
+                return await resp.json()
 
     async def handle_event(self, msg):
         player = self.lavalink.get_link(msg.get("guildId")).player
