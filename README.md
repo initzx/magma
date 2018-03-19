@@ -11,4 +11,5 @@ More info in requirements.txt
 
 ### Help and support:
 You can join the official Discord server for Magma here:
-https://discord.gg/JpPAMYD
+https://discord.gg/JpPAMYD  
+There is a very basic working example of a cog implementing Magma under examples which you can use for reference.
