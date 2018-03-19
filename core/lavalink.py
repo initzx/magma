@@ -1,5 +1,6 @@
 from enum import Enum
 
+import logging
 from discord import InvalidArgument
 from discord.ext.commands import BotMissingPermissions
 
@@ -7,6 +8,9 @@ from .exceptions import IllegalAction
 from .node import Node
 from .player import Player, AudioTrack
 from .load_balancing import LoadBalancer
+
+logger = logging.getLogger("magma")
+logger.addHandler(logging.NullHandler())
 
 
 class State(Enum):
@@ -105,6 +109,7 @@ class Link:
         self.state = state
 
     async def update_voice(self, data):
+        logger.debug(f"Received voice update data: {data}")
         if not self.guild:  # is this even necessary? :thinking:
             raise IllegalAction("Attempted to start audio connection with a guild that doesn't exist")
 

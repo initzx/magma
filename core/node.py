@@ -1,10 +1,15 @@
 import json
 
+import asyncio
 import aiohttp
+import logging
 import websockets
 
 from .events import TrackEndEvent, TrackStuckEvent, TrackExceptionEvent
-from .exceptions import IllegalAction
+from .exceptions import NodeException
+
+logger = logging.getLogger("magma")
+logger.addHandler(logging.NullHandler())
 
 
 class NodeStats:
@@ -49,8 +54,19 @@ class Node:
         self.stats = None
         self.ws = None
 
+    async def _connect(self, tries=0):
+        if tries < 5:
+            try:
+                self.ws = await websockets.connect(self.uri, extra_headers=self.headers)
+            except OSError:
+                logger.error(f"Connection refused, trying again in 5s, try: {tries+1}/5")  # logging soon pls
+                await asyncio.sleep(5)
+                await self._connect(tries+1)
+        else:
+            raise NodeException("Connection failed after 5 tries")
+
     async def connect(self):
-        self.ws = await websockets.connect(self.uri, extra_headers=self.headers)
+        await self._connect()
         await self.on_open()
         self.lavalink.loop.create_task(self.listen())
 
@@ -63,7 +79,6 @@ class Node:
             await self.on_close(e.code, e.reason)
 
     async def on_open(self):
-        print(f"Node connected: {self.name}")
         self.available = True
         await self.lavalink.load_balancer.on_node_connect(self)
 
@@ -74,14 +89,15 @@ class Node:
 
         # we gotta use print for now until someone writes me good logging code
         if code == 1000:
-            print(f"Connection to {self.uri} closed gracefully with reason: {reason}")
+            logger.info(f"Connection to {self.uri} closed gracefully with reason: {reason}")
         else:
-            print(f"Connection to {self.uri} closed unexpectedly with code: {code}, reason: {reason}")
+            logger.warning(f"Connection to {self.uri} closed unexpectedly with code: {code}, reason: {reason}")
 
         await self.lavalink.load_balancer.on_node_disconnect(self)
 
     async def on_message(self, msg):
         # We receive Lavalink responses here
+        logger.debug(f"Received websocket message: {msg}")
         op = msg.get("op")
         if op == "playerUpdate":
             link = self.lavalink.get_link(msg.get("guildId"))
@@ -91,12 +107,11 @@ class Node:
         elif op == "event":
             await self.handle_event(msg)
         else:
-            # log this shit
-            pass
+            logger.info(f"Received unknown op: {op}")
 
     async def send(self, msg):
         if not self.ws or not self.ws.open:
-            raise IllegalAction("Websocket is not ready, cannot send message")
+            raise NodeException("Websocket is not ready, cannot send message")
         await self.ws.send(json.dumps(msg))
 
     async def get_tracks(self, query):
@@ -119,9 +134,8 @@ class Node:
             event = TrackExceptionEvent(player, player.track, msg.get("error"))
         elif event_type == "TrackStuckEvent":
             event = TrackStuckEvent(player, player.track, msg.get("thresholdMs"))
-        else:
-            # log this shit pls
-            pass
+        elif event_type:
+            logger.info(f"Received unknown event: {event}")
 
         if event:
             await player.trigger_event(event)

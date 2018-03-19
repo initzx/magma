@@ -23,6 +23,14 @@ class MusicPlayer(AbstractPlayerEventAdapter):
         pass
 ```
 
+### Basic implementation
 You should subclass `AbstractPlayerEventAdapter` to handle all business logic and other components related to your bot.  
 I will also recommend a manager that manages your inherited adapters to allow more control over the different adapters.
 
+### Logging
+The handler of Magma's logger is a NullHandler by default, you can choose to receive logging messages by doing for example:
+```python
+import logging
+logging.basicConfig(format="%(levelname)s -- %(name)s.%(funcName)s : %(message)s", level=logging.INFO)
+```
+Place the code above somewhere where you initialize the bot.

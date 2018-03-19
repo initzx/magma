@@ -1,4 +1,9 @@
+import logging
+
 from .exceptions import IllegalAction
+
+logger = logging.getLogger("magma")
+logger.addHandler(logging.NullHandler())
 
 
 class LoadBalancer:
@@ -6,7 +11,7 @@ class LoadBalancer:
     """
     TODO: add custom penalty support
 
-    The load balancer is copied from Fre_d's Java client, and works on somewhat the same way
+    The load balancer is copied from Fre_d's Java client, and works in somewhat the same way
     """
 
     def __init__(self, lavalink):
@@ -27,11 +32,13 @@ class LoadBalancer:
         return best_node
 
     async def on_node_disconnect(self, node):
+        logger.info(f"Node disconnected: {node.name}")
         for link in self.lavalink.links.values():
             if node == await link.get_node():
                 link.change_node()
 
     async def on_node_connect(self, node):
+        logger.info(f"Node connected: {node.name}")
         for link in self.lavalink.links.values():
             if not await link.get_node():
                 link.change_node(node)
