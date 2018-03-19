@@ -124,13 +124,13 @@ class Link:
             if int(data["d"]["user_id"]) != self.bot.user.id:
                 return
 
-            channel = self.guild.get_channel(int(data["d"]["channel_id"]))
-            if not channel and self.state != State.DESTROYED:
+            channel_id = data["d"]["channel_id"]
+            if not channel_id and self.state != State.DESTROYED:
                 self.state = State.NOT_CONNECTED
                 if self.node:
                     payload = {
                         "op": "destroy",
-                        "guildId": data["d"]["guildId"]
+                        "guildId": data["d"]["guild_id"]
                     }
                     await self.node.send(payload)
                 self.node = None

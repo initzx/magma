@@ -129,7 +129,7 @@ class Player:
 
     async def stop(self):
         """
-        Sends a request to the Lavalink node to stop the player
+        Sends a request to the Lavalink node to stop the current playing song
         :return:
         """
         payload = {
