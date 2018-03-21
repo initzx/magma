@@ -17,6 +17,7 @@ class AudioTrack:
         self.identifier = track['info']['identifier']
         self.seekable = track['info']['isSeekable']
         self.duration = track['info']['length']
+        self.user_data = None
 
 
 class Player:

@@ -59,7 +59,7 @@ class Node:
             try:
                 self.ws = await websockets.connect(self.uri, extra_headers=self.headers)
             except OSError:
-                logger.error(f"Connection refused, trying again in 5s, try: {tries+1}/5")  # logging soon pls
+                logger.error(f"Connection refused, trying again in 5s, try: {tries+1}/5")
                 await asyncio.sleep(5)
                 await self._connect(tries+1)
         else:
@@ -87,11 +87,10 @@ class Node:
         if not reason:
             reason = "<no reason given>"
 
-        # we gotta use print for now until someone writes me good logging code
         if code == 1000:
-            logger.info(f"Connection to {self.uri} closed gracefully with reason: {reason}")
+            logger.info(f"Connection to {self.name} closed gracefully with reason: {reason}")
         else:
-            logger.warning(f"Connection to {self.uri} closed unexpectedly with code: {code}, reason: {reason}")
+            logger.warning(f"Connection to {self.name} closed unexpectedly with code: {code}, reason: {reason}")
 
         await self.lavalink.load_balancer.on_node_disconnect(self)
 
