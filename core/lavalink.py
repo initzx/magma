@@ -45,14 +45,13 @@ class Lavalink:
     def get_link(self, guild):
         """
         Return a Link for the specified guild
-        :param guild: The guild for the Link
+        :param guild: The guild or the guild id for the Link
         :return: A Link
         """
-        if guild.__class__ == str:  # PASSING IN DIFFERENT TYPES, REEEEEEEEEEEE, SOMEONE FIX THIS
-            guild_id = int(guild)
-        else:
-            guild_id = guild.id
+        if guild.__class__ in (str, int):  # PASSING IN DIFFERENT TYPES, REEEEEEEEEEEE, SOMEONE FIX THIS
+            return self.links.get(int(guild))
 
+        guild_id = guild.id
         if guild_id not in self.links:
             self.links[guild_id] = Link(self, guild)
         return self.links[guild_id]

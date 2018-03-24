@@ -128,11 +128,11 @@ class Node:
         event_type = msg.get("type")
 
         if event_type == "TrackEndEvent":
-            event = TrackEndEvent(player, player.track, msg.get("reason"))
+            event = TrackEndEvent(player, player.current, msg.get("reason"))
         elif event_type == "TrackExceptionEvent":
-            event = TrackExceptionEvent(player, player.track, msg.get("error"))
+            event = TrackExceptionEvent(player, player.current, msg.get("error"))
         elif event_type == "TrackStuckEvent":
-            event = TrackStuckEvent(player, player.track, msg.get("thresholdMs"))
+            event = TrackStuckEvent(player, player.current, msg.get("thresholdMs"))
         elif event_type:
             logger.info(f"Received unknown event: {event}")
 

@@ -25,7 +25,7 @@ class Player:
 
     def __init__(self, link):
         self.link = link
-        self.track = None
+        self.current = None
         self.event_adapter = None
         self.paused = False
         self.volume = 100
@@ -33,13 +33,17 @@ class Player:
         self._position = -1
 
     @property
+    def is_playing(self):
+        return self.current is not None
+
+    @property
     def position(self):
         # We're going to get the position of the current song
         # There is a delay between each update so we gotta do some calculations
         if not self.paused:
             diff = time()*1000 - self.update_time
-            return min(self._position + diff, self.track.duration)
-        return min(self._position, self.track.duration)
+            return min(self._position + diff, self.current.duration)
+        return min(self._position, self.current.duration)
 
     async def provide_state(self, state):
         self.update_time = state["time"]
@@ -51,9 +55,9 @@ class Player:
         :param position: The position in seconds
         :return:
         """
-        if not self.track:
+        if not self.current:
             raise IllegalAction("Not playing anything right now")
-        if not self.track.seekabble:
+        if not self.current.seekabble:
             raise IllegalAction("Cannot seek for this track")
 
         payload = {
@@ -125,7 +129,7 @@ class Player:
         node = await self.link.get_node(True)
         await node.send(payload)
         self.update_time = time()*1000
-        self.track = track
+        self.current = track
         await self.trigger_event(TrackStartEvent(self, track))
 
     async def stop(self):
@@ -142,8 +146,8 @@ class Player:
         await node.send(payload)
 
     async def node_changed(self):
-        if self.track:
-            await self.play(self.track, self.position)
+        if self.current:
+            await self.play(self.current, self.position)
 
     async def trigger_event(self, event):
         await Player.internal_event_adapter.on_event(event)
