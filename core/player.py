@@ -40,8 +40,9 @@ class Player:
     def position(self):
         # We're going to get the position of the current song
         # There is a delay between each update so we gotta do some calculations
+        # btw this is in fucking milliseconds
         if not self.paused:
-            diff = time()*1000 - self.update_time
+            diff = round(time()*1000) - self.update_time
             return min(self._position + diff, self.current.duration)
         return min(self._position, self.current.duration)
 

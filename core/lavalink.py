@@ -10,7 +10,6 @@ from .player import Player, AudioTrack
 from .load_balancing import LoadBalancer
 
 logger = logging.getLogger("magma")
-logger.addHandler(logging.NullHandler())
 
 
 class State(Enum):

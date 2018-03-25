@@ -3,7 +3,6 @@ import logging
 from .exceptions import IllegalAction
 
 logger = logging.getLogger("magma")
-logger.addHandler(logging.NullHandler())
 
 
 class LoadBalancer:

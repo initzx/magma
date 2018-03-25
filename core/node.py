@@ -9,7 +9,6 @@ from .events import TrackEndEvent, TrackStuckEvent, TrackExceptionEvent
 from .exceptions import NodeException
 
 logger = logging.getLogger("magma")
-logger.addHandler(logging.NullHandler())
 
 
 class NodeStats:
