@@ -58,7 +58,7 @@ class Player:
         """
         if not self.current:
             raise IllegalAction("Not playing anything right now")
-        if not self.current.seekabble:
+        if not self.current.seekable:
             raise IllegalAction("Cannot seek for this track")
 
         payload = {
