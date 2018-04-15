@@ -53,7 +53,7 @@ class Player:
     async def seek_to(self, position):
         """
         Sends a request to the Lavalink node to seek to a specific position
-        :param position: The position in seconds
+        :param position: The position in millis
         :return:
         """
         if not self.current:

@@ -19,14 +19,14 @@ class LoadBalancer:
     async def determine_best_node(self, guild):
         nodes = self.lavalink.nodes.values()
         best_node = None
-        record = 999999999999999
+        record = 9e30
         for node in nodes:
             penalties = Penalties(node, guild, self.lavalink)
             total = await penalties.get_total()
             if total and total < record:
                 best_node = node
                 record = total
-        if not (best_node or best_node.available):
+        if not best_node or not best_node.available:
             raise IllegalAction("No available nodes")
         return best_node
 
@@ -75,5 +75,5 @@ class Penalties:
             self.null_frame_penalty *= 2
 
         if not self.node.available or not self.node.stats:
-            return 999999999999998
+            return 9e30
         return self.player_penalty + self.cpu_penalty + self.deficit_frame_penalty + self.null_frame_penalty

@@ -109,7 +109,10 @@ class Node:
 
     async def send(self, msg):
         if not self.ws or not self.ws.open:
-            raise NodeException("Websocket is not ready, cannot send message")
+            try:
+                await self.connect()
+            except:
+                raise NodeException("Websocket is not ready, cannot send message")
         await self.ws.send(json.dumps(msg))
 
     async def get_tracks(self, query):
