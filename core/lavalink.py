@@ -193,7 +193,7 @@ class Link:
         me = channel.guild.me
         permissions = me.permissions_in(channel)
         if not permissions.connect and not permissions.move_members:
-            raise BotMissingPermissions(permissions.connect)
+            raise BotMissingPermissions(["connect"])
 
         self.set_state(State.CONNECTING)
         payload = {
