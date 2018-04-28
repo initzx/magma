@@ -32,13 +32,13 @@ class LoadBalancer:
         logger.info(f"Node disconnected: {node.name}")
         for link in self.lavalink.links.values():
             if node == await link.get_node():
-                link.change_node()
+                await link.change_node()
 
     async def on_node_connect(self, node):
         logger.info(f"Node connected: {node.name}")
         for link in self.lavalink.links.values():
             if not await link.get_node():
-                link.change_node(node)
+                await link.change_node(node)
 
 
 class Penalties:
