@@ -138,19 +138,22 @@ class Link:
                     await self.node.send(payload)
                 self.node = None
 
-    async def get_tracks(self, query, ytsearch=True):
+    async def get_tracks(self, query):
         """
         Get a list of AudioTracks from a query
 
         :param query: The query to pass to the Node
-        :param ytsearch: A boolean that indicates if it should search on YouTube
         :return:
         """
-        if ytsearch:
-            query = f"ytsearch:{query}"
         node = await self.get_node(True)
         tracks = await node.get_tracks(query)
         return [AudioTrack(track) for track in tracks]
+
+    async def get_tracks_yt(self, query):
+        return await self.get_tracks("ytsearch:" + query)
+
+    async def get_tracks_sc(self, query):
+        return await self.get_tracks("scsearch:" + query)
 
     async def get_node(self, select_if_absent=False):
         """

@@ -8,8 +8,6 @@ logger = logging.getLogger("magma")
 class LoadBalancer:
 
     """
-    TODO: add custom penalty support
-
     The load balancer is copied from Fre_d's Java client, and works in somewhat the same way
     """
 

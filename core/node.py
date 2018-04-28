@@ -9,6 +9,8 @@ from .events import TrackEndEvent, TrackStuckEvent, TrackExceptionEvent
 from .exceptions import NodeException
 
 logger = logging.getLogger("magma")
+timeout = 5
+tries = 5
 
 
 class NodeStats:
@@ -53,16 +55,16 @@ class Node:
         self.stats = None
         self.ws = None
 
-    async def _connect(self, tries=0):
-        if tries < 5:
-            try:
-                self.ws = await websockets.connect(self.uri, extra_headers=self.headers)
-            except OSError:
-                logger.error(f"Connection refused, trying again in 5s, try: {tries+1}/5")
-                await asyncio.sleep(5)
-                await self._connect(tries+1)
-        else:
-            raise NodeException("Connection failed after 5 tries")
+    async def _connect(self, try_=0):
+        try:
+            self.ws = await websockets.connect(self.uri, extra_headers=self.headers)
+        except OSError:
+            if try_ < tries:
+                logger.error(f"Connection refused, trying again in {timeout}s, try: {try_+1}/{tries}")
+                await asyncio.sleep(timeout)
+                await self._connect(try_+1)
+            else:
+                raise NodeException(f"Connection failed after {tries} tries")
 
     async def connect(self):
         await self._connect()
