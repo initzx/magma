@@ -14,12 +14,12 @@ class LoadBalancer:
     def __init__(self, lavalink):
         self.lavalink = lavalink
 
-    async def determine_best_node(self, guild):
+    async def determine_best_node(self):
         nodes = self.lavalink.nodes.values()
         best_node = None
         record = 9e30
         for node in nodes:
-            penalties = Penalties(node, guild, self.lavalink)
+            penalties = Penalties(node, self.lavalink)
             total = await penalties.get_total()
             if total and total < record:
                 best_node = node
@@ -32,7 +32,8 @@ class LoadBalancer:
         logger.info(f"Node disconnected: {node.name}")
         for link in self.lavalink.links.values():
             if node == await link.get_node():
-                await link.change_node()
+                new_node = await self.determine_best_node()
+                await link.change_node(new_node)
 
     async def on_node_connect(self, node):
         logger.info(f"Node connected: {node.name}")
@@ -42,9 +43,8 @@ class LoadBalancer:
 
 
 class Penalties:
-    def __init__(self, node, guild, lavalink):
+    def __init__(self, node, lavalink):
         self.node = node
-        self.guild = guild
         self.lavalink = lavalink
 
         self.player_penalty = 0

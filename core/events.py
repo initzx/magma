@@ -109,7 +109,7 @@ class InternalEventAdapter(AbstractPlayerEventAdapter):
         pass
 
     async def track_end(self, event: TrackEndEvent):
-        event.player.current = None
+        event.player.reset()
 
     async def track_exception(self, event: TrackExceptionEvent):
         pass

@@ -75,14 +75,13 @@ class Lavalink:
         await node.connect()
         self.nodes[name] = node
 
-    async def get_best_node(self, guild):
+    async def get_best_node(self):
         """
-        Determines the best Node for a guild based on penalty calculations
+        Determines the best Node based on penalty calculations
 
-        :param guild: The guild
         :return: A Node
         """
-        return await self.load_balancer.determine_best_node(guild)
+        return await self.load_balancer.determine_best_node()
 
 
 class Link:
@@ -163,7 +162,7 @@ class Link:
         :return: A Node
         """
         if select_if_absent and not self.node:
-            self.node = await self.lavalink.get_best_node(self.guild)
+            self.node = await self.lavalink.get_best_node()
             if self.player:
                 await self.player.node_changed()
         return self.node
