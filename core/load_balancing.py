@@ -59,7 +59,7 @@ class Penalties:
             return
 
         if self.lavalink:
-            # reee complexity levels
+            # REEEEE complexity levels
             for link in self.lavalink.links.values():
                 if self.node == await link.get_node() and link.player.current and not link.player.paused:
                     self.player_penalty += 1
