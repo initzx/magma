@@ -97,7 +97,7 @@ class Node:
 
     async def on_message(self, msg):
         # We receive Lavalink responses here
-        logger.debug(f"Received websocket message: {msg}")
+        logger.debug(f"Received websocket message from `{self.name}`: {msg}")
         op = msg.get("op")
         if op == "playerUpdate":
             link = self.lavalink.get_link(msg.get("guildId"))

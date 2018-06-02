@@ -100,10 +100,10 @@ class InternalEventAdapter(AbstractPlayerEventAdapter):
     A default internal EventAdapter that only cares about track_end
     """
     async def track_pause(self, event: TrackPauseEvent):
-        pass
+        event.player.paused = True
 
     async def track_resume(self, event: TrackResumeEvent):
-        pass
+        event.player.paused = False
 
     async def track_start(self, event: TrackStartEvent):
         pass

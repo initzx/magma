@@ -84,8 +84,6 @@ class Player:
         :param pause: A boolean that indicates the pause state
         :return:
         """
-        if pause == self.paused:
-            return
 
         payload = {
             "op": "pause",
@@ -95,7 +93,6 @@ class Player:
 
         node = await self.link.get_node(True)
         await node.send(payload)
-        self.paused = pause
 
         if pause:
             await self.trigger_event(TrackPauseEvent(self))

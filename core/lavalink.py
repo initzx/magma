@@ -34,6 +34,14 @@ class Lavalink:
 
         self.bot.add_listener(self.on_socket_response)
 
+    @property
+    def playing_guilds(self):
+        count = 0
+        for node in self.nodes.values():
+            if node.stats and node.stats.playing_players:
+                count += node.stats.playing_players
+        return count
+
     async def on_socket_response(self, data):
         if not data.get("t") in ("VOICE_SERVER_UPDATE", "VOICE_STATE_UPDATE"):
             return
