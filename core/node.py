@@ -70,14 +70,32 @@ class Node:
         await self._connect()
         await self.on_open()
         self.lavalink.loop.create_task(self.listen())
+        self.lavalink.loop.create_task(self.ping())
+
+    async def ping(self):
+        """
+        **THIS IS VERY IMPORTANT**
+
+        Lavalink will sometimes fail to recognize the client connection if
+        a ping is not sent frequently. Websockets sends by default, a ping
+        every 5-6 seconds, but this is not enough to maintain the connection.
+
+        This is likely due to the deprecated ws draft: RFC 6455
+        """
+        while True:
+            await self.ws.ping()
+            await asyncio.sleep(2)
 
     async def listen(self):
         try:
-            while self.ws.open:
+            while True:
                 msg = await self.ws.recv()
                 await self.on_message(json.loads(msg))
         except websockets.ConnectionClosed as e:
-            await self.on_close(e.code, e.reason)
+            try:
+                await self.connect()
+            except NodeException:
+                await self.on_close(e.code, e.reason)
 
     async def on_open(self):
         self.available = True
