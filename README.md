@@ -7,6 +7,8 @@ A Lavalink connector written in Python, translated from Fre_d's Java Lavalink cl
 * websockets
 * aiohttp
 
+**Magma depends on discord.py rewrite**
+
 More info in requirements.txt
 
 ### Help and support:
