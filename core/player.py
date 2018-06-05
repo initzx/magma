@@ -153,7 +153,7 @@ class Player:
 
     async def node_changed(self):
         if self.current:
-            await self.play(self.current, self.position)
+            await self.play(self.current, self._position)
 
     async def trigger_event(self, event):
         await Player.internal_event_adapter.on_event(event)

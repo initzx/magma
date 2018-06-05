@@ -48,7 +48,7 @@ class Node:
     def __init__(self, lavalink, name, uri, rest_uri, headers):
         self.name = name
         self.lavalink = lavalink
-        self.links = []
+        self.links = {}
         self.uri = uri
         self.rest_uri = rest_uri
         self.headers = headers
@@ -70,6 +70,7 @@ class Node:
 
     async def connect(self):
         if self.available:
+            logger.warning(f"An attempt was made trying to reconnect `{self.name}` when it's open!")
             raise NodeException("The websocket connection is open, cannot connect twice!")
 
         await self._connect()
@@ -97,26 +98,31 @@ class Node:
                 await self.ws.ping()
                 await asyncio.sleep(2)
         except websockets.ConnectionClosed as e:
+            logger.warning(f"Connection to `{self.name}` was closed!")
+            self.available = False
             if self.closing:
                 await self.on_close(e.code, e.reason)
                 return
 
             try:
+                logger.info(f"Attempting to reconnect `{self.name}`")
                 await self.connect()
             except NodeException:
                 await self.on_close(e.code, e.reason)
 
     async def listen(self):
-        while True:
-            msg = await self.ws.recv()
-            await self.on_message(json.loads(msg))
+        try:
+            while True:
+                msg = await self.ws.recv()
+                await self.on_message(json.loads(msg))
+        except websockets.ConnectionClosed:
+            pass  # ping() handles this for us, no need to hear it twice..
 
     async def on_open(self):
-        self.available = True
         await self.lavalink.load_balancer.on_node_connect(self)
+        self.available = True
 
     async def on_close(self, code, reason):
-        self.available = False
         self.closing = False
         if not reason:
             reason = "<no reason given>"
@@ -146,7 +152,7 @@ class Node:
         if not self.ws or not self.ws.open:
             try:
                 await self.connect()
-            except:
+            except NodeException:
                 raise NodeException("Websocket is not ready, cannot send message")
         await self.ws.send(json.dumps(msg))
 

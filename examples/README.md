@@ -24,7 +24,7 @@ class MusicPlayer(AbstractPlayerEventAdapter):
 ```
 
 ### Basic implementation
-You should subclass `AbstractPlayerEventAdapter` to handle all business logic and other components related to your bot. I will also recommend a manager that manages your inherited adapters to allow more control over the different adapters.
+You should subclass `AbstractPlayerEventAdapter` to handle all business logic and other components related to your bot. I also recommend using a manager that manages your inherited adapters in order to allow more control over the different adapters.
 
 ### Advanced implementation
 A more advanced implementation can be found in Himebot's code: <br />

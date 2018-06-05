@@ -12,12 +12,12 @@ from shutil import rmtree
 from setuptools import find_packages, setup, Command
 
 # Package meta-data.
-NAME = 'discord-magma'
-DESCRIPTION = ''
+NAME = 'lavalink-magma'
+DESCRIPTION = 'The Python connector for Lavalink'
 URL = 'https://github.com/initzx/magma'
-EMAIL = '' # TODO
+EMAIL = ''  # TODO
 AUTHOR = 'init0'
-REQUIRES_PYTHON = '' # TODO
+REQUIRES_PYTHON = ''  # TODO
 VERSION = '0.0.1'
 
 # What packages are required for this module to be executed?
