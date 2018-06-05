@@ -45,6 +45,7 @@ class LoadBalancer:
         for link in self.lavalink.links.values():
             if not await link.get_node() or not link.node_available:
                 await link.change_node(node)
+                link.node_available = True
 
 
 class Penalties:
