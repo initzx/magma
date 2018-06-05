@@ -30,15 +30,20 @@ class LoadBalancer:
 
     async def on_node_disconnect(self, node):
         logger.info(f"Node disconnected: {node.name}")
-        for link in self.lavalink.links.values():
-            if node == await link.get_node():
-                new_node = await self.determine_best_node()
-                await link.change_node(new_node)
+        try:
+            new_node = await self.determine_best_node()
+        except IllegalAction:
+            for link in node.links:
+                link.node_available = False
+        else:
+            for link in node.links:
+                link.node_available = True
+                link.change_node(new_node)
 
     async def on_node_connect(self, node):
         logger.info(f"Node connected: {node.name}")
         for link in self.lavalink.links.values():
-            if not await link.get_node():
+            if not await link.get_node() or not link.node_available:
                 await link.change_node(node)
 
 

@@ -102,6 +102,7 @@ class Link:
         self.last_session_id = None
         self._player = None
         self.node = None
+        self.node_available = False
 
     @property
     def player(self):
@@ -173,6 +174,8 @@ class Link:
         """
         if select_if_absent and not self.node:
             self.node = await self.lavalink.get_best_node()
+            self.node_available = True
+            self.node.links.append(self)
             if self.player:
                 await self.player.node_changed()
         return self.node
@@ -188,7 +191,7 @@ class Link:
         if self.last_voice_update:
             await node.send(self.last_voice_update)
             await self.player.node_changed()
-
+    
     async def connect(self, channel):
         """
         Connect to a voice channel

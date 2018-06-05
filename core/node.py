@@ -48,6 +48,7 @@ class Node:
     def __init__(self, lavalink, name, uri, rest_uri, headers):
         self.name = name
         self.lavalink = lavalink
+        self.links = []
         self.uri = uri
         self.rest_uri = rest_uri
         self.headers = headers
