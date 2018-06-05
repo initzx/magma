@@ -51,9 +51,10 @@ class Node:
         self.uri = uri
         self.rest_uri = rest_uri
         self.headers = headers
-        self.available = False
         self.stats = None
         self.ws = None
+        self.available = False
+        self.closing = False
 
     async def _connect(self, try_=0):
         try:
@@ -69,8 +70,13 @@ class Node:
     async def connect(self):
         await self._connect()
         await self.on_open()
-        self.lavalink.loop.create_task(self.listen())
-        self.lavalink.loop.create_task(self.ping())
+        asyncio.ensure_future(self.listen())
+        asyncio.ensure_future(self.ping())
+
+    async def close(self):
+        logger.info(f"Closing websocket connection for node: {self.name}")
+        self.closing = True
+        await self.ws.close()
 
     async def ping(self):
         """
@@ -82,20 +88,24 @@ class Node:
 
         This is likely due to the deprecated ws draft: RFC 6455
         """
-        while True:
-            await self.ws.ping()
-            await asyncio.sleep(2)
-
-    async def listen(self):
         try:
             while True:
-                msg = await self.ws.recv()
-                await self.on_message(json.loads(msg))
+                await self.ws.ping()
+                await asyncio.sleep(2)
         except websockets.ConnectionClosed as e:
+            if self.closing:
+                await self.on_close(e.code, e.reason)
+                return
+
             try:
                 await self.connect()
             except NodeException:
                 await self.on_close(e.code, e.reason)
+
+    async def listen(self):
+        while True:
+            msg = await self.ws.recv()
+            await self.on_message(json.loads(msg))
 
     async def on_open(self):
         self.available = True
@@ -103,6 +113,7 @@ class Node:
 
     async def on_close(self, code, reason):
         self.available = False
+        self.closing = False
         if not reason:
             reason = "<no reason given>"
 
