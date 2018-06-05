@@ -69,12 +69,15 @@ class Node:
                 raise NodeException(f"Connection failed after {tries} tries")
 
     async def connect(self):
+        if self.available:
+            raise NodeException("The websocket connection is open, cannot connect twice!")
+
         await self._connect()
         await self.on_open()
         asyncio.ensure_future(self.listen())
         asyncio.ensure_future(self.ping())
 
-    async def close(self):
+    async def disconnect(self):
         logger.info(f"Closing websocket connection for node: {self.name}")
         self.closing = True
         await self.ws.close()
