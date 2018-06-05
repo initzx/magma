@@ -27,8 +27,8 @@ class MusicPlayer(AbstractPlayerEventAdapter):
 You should subclass `AbstractPlayerEventAdapter` to handle all business logic and other components related to your bot. I will also recommend a manager that manages your inherited adapters to allow more control over the different adapters.
 
 ### Advanced implementation
-A more advanced implementation can be found in Himebot's code:
-[Player manager and player](https://github.com/initzx/rewrite/tree/multiprocessing/audio)
+A more advanced implementation can be found in Himebot's code: <br />
+[Player manager and player](https://github.com/initzx/rewrite/tree/multiprocessing/audio) <br />
 [Commands and such](https://github.com/initzx/rewrite/blob/multiprocessing/commands/music.py) 
 
 ### Logging
