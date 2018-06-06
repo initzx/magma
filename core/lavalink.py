@@ -239,3 +239,9 @@ class Link:
 
         self.set_state(State.DISCONNECTING)
         await self.bot._connection._get_websocket(self.guild.id).send_as_json(payload)
+
+    async def destroy(self):
+        self.lavalink.links.pop(self.guild.id)
+        self.node.links.pop(self.guild.id)
+        if self._player:
+            await self._player.destroy()

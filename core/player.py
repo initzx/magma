@@ -151,6 +151,19 @@ class Player:
         node = await self.link.get_node(True)
         await node.send(payload)
 
+    async def destroy(self):
+        """
+        Sends a request to the Lavalink node to destroy the player and reset
+        :return:
+        """
+        payload = {
+            "op": "destroy",
+            "guildId": str(self.link.guild.id),
+        }
+
+        node = await self.link.get_node(True)
+        await node.send(payload)
+
     async def node_changed(self):
         if self.current:
             await self.play(self.current, self._position)
