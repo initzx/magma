@@ -69,10 +69,6 @@ class Node:
                 raise NodeException(f"Connection failed after {tries} tries")
 
     async def connect(self):
-        if self.available:
-            logger.warning(f"An attempt was made trying to reconnect `{self.name}` when it's open!")
-            raise NodeException("The websocket connection is open, cannot connect twice!")
-
         await self._connect()
         await self.on_open()
         asyncio.ensure_future(self.listen())
@@ -96,7 +92,7 @@ class Node:
         try:
             while True:
                 await self.ws.ping()
-                await asyncio.sleep(2)
+                await asyncio.sleep(1)
         except websockets.ConnectionClosed as e:
             logger.warning(f"Connection to `{self.name}` was closed!")
             self.available = False
@@ -153,6 +149,7 @@ class Node:
             try:
                 await self.connect()
             except NodeException:
+                self.available = False
                 raise NodeException("Websocket is not ready, cannot send message")
         await self.ws.send(json.dumps(msg))
 
