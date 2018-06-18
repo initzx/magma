@@ -3,6 +3,7 @@ import logging
 from .exceptions import IllegalAction
 
 logger = logging.getLogger("magma")
+big_number = 9e30
 
 
 class LoadBalancer:
@@ -16,16 +17,20 @@ class LoadBalancer:
 
     async def determine_best_node(self):
         nodes = self.lavalink.nodes.values()
+        if not nodes:
+            raise IllegalAction("No nodes found!")
         best_node = None
-        record = 9e30
+        record = big_number
         for node in nodes:
             penalties = Penalties(node, self.lavalink)
             total = await penalties.get_total()
-            if total and total < record:
+            if total < record:
                 best_node = node
+
                 record = total
+
         if not best_node or not best_node.available:
-            raise IllegalAction("No available nodes")
+            raise IllegalAction(f"No available nodes! record: {record}")
         return best_node
 
     async def on_node_disconnect(self, node):
@@ -73,5 +78,5 @@ class Penalties:
             self.null_frame_penalty *= 2
 
         if not self.node.available or not self.node.stats:
-            return 9e30
+            return big_number
         return self.player_penalty + self.cpu_penalty + self.deficit_frame_penalty + self.null_frame_penalty

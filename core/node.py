@@ -92,9 +92,9 @@ class Node:
         try:
             while True:
                 await self.ws.ping()
-                await asyncio.sleep(1)
+                await asyncio.sleep(2)
         except websockets.ConnectionClosed as e:
-            logger.warning(f"Connection to `{self.name}` was closed!")
+            logger.warning(f"Connection to `{self.name}` was closed! Reason: {e.code}, {e.reason}")
             self.available = False
             if self.closing:
                 await self.on_close(e.code, e.reason)
@@ -163,7 +163,11 @@ class Node:
 
     async def handle_event(self, msg):
         # Lavalink sends us track end event types
-        player = self.lavalink.get_link(msg.get("guildId")).player
+        link = self.lavalink.get_link(msg.get("guildId"))
+        if not link:
+            return  # the link got destroyed
+
+        player = link.player
         event = None
         event_type = msg.get("type")
 
