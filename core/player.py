@@ -75,7 +75,7 @@ class Player:
             "position": position
         }
 
-        node = await self.link.get_node(True)
+        node = await self.link.get_node()
         await node.send(payload)
 
     async def set_paused(self, pause):
@@ -91,7 +91,7 @@ class Player:
             "pause": pause,
         }
 
-        node = await self.link.get_node(True)
+        node = await self.link.get_node()
         await node.send(payload)
 
         if pause:
@@ -114,7 +114,7 @@ class Player:
             "volume": volume,
         }
 
-        node = await self.link.get_node(True)
+        node = await self.link.get_node()
         await node.send(payload)
         self.volume = volume
 
@@ -148,7 +148,7 @@ class Player:
             "guildId": str(self.link.guild.id),
         }
 
-        node = await self.link.get_node(True)
+        node = await self.link.get_node()
         await node.send(payload)
 
     async def destroy(self):
@@ -160,9 +160,11 @@ class Player:
             "op": "destroy",
             "guildId": str(self.link.guild.id),
         }
-
-        node = await self.link.get_node(True)
-        await node.send(payload)
+        node = await self.link.get_node()
+        if node.available:
+            await node.send(payload)
+        await self.event_adapter.destroy()
+        self.event_adapter = None
 
     async def node_changed(self):
         if self.current:

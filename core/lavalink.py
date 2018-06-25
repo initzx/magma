@@ -1,3 +1,4 @@
+import asyncio
 from enum import Enum
 
 import logging
@@ -23,16 +24,14 @@ class State(Enum):
 
 
 class Lavalink:
-    def __init__(self, bot):
-        self.bot = bot
-        self.loop = self.bot.loop
-        self.user_id = bot.user.id
-        self.shard_count = bot.shard_count
+    def __init__(self, user_id, shard_count):
+
+        self.user_id = user_id
+        self.shard_count = shard_count
+        self.loop = asyncio.get_event_loop()
         self.load_balancer = LoadBalancer(self)
         self.nodes = {}
         self.links = {}
-
-        self.bot.add_listener(self.on_socket_response)
 
     @property
     def playing_guilds(self):
@@ -43,16 +42,21 @@ class Lavalink:
         return sum(self.playing_guilds.values())
 
     async def on_socket_response(self, data):
+        """
+        YOU MUST ADD THIS WITH `bot.add_listener(lavalink.on_socket_response)`
+        """
+
         if not data.get("t") in ("VOICE_SERVER_UPDATE", "VOICE_STATE_UPDATE"):
             return
         link = self.links.get(int(data['d']['guild_id']))
         if link:
             await link.update_voice(data)
 
-    def get_link(self, guild):
+    def get_link(self, guild, bot=None):
         """
         Return a Link for the specified guild
         :param guild: The guild or the guild id for the Link
+        :param bot: The bot/shard where this was invoked
         :return: A Link
         """
         if guild.__class__ in (str, int):  # PASSING IN DIFFERENT TYPES, REEEEEEEEEEEE, SOMEONE FIX THIS
@@ -60,7 +64,9 @@ class Lavalink:
 
         guild_id = guild.id
         if guild_id not in self.links:
-            self.links[guild_id] = Link(self, guild)
+            if not bot:
+                raise IllegalAction("A bot instance was not passed when trying to acquire a Link!")
+            self.links[guild_id] = Link(self, guild, bot)
         return self.links[guild_id]
 
     async def add_node(self, name, uri, rest_uri, password):
@@ -93,10 +99,10 @@ class Lavalink:
 
 
 class Link:
-    def __init__(self, lavalink, guild):
+    def __init__(self, lavalink, guild, bot):
         self.lavalink = lavalink
-        self.bot = self.lavalink.bot
         self.guild = guild
+        self.bot = bot
         self.state = State.NOT_CONNECTED
         self.last_voice_update = {}
         self.last_session_id = None
@@ -197,7 +203,7 @@ class Link:
         :return:
         """
         # We're using discord's websocket, not lavalink
-        if not channel.guild == self.guild:
+        if channel.guild != self.guild:
             raise InvalidArgument("The guild of the channel isn't the the same as the link's!")
         if channel.guild.unavailable:
             raise IllegalAction("Cannot connect to guild that is unavailable!")
@@ -241,7 +247,9 @@ class Link:
         await self.bot._connection._get_websocket(self.guild.id).send_as_json(payload)
 
     async def destroy(self):
-        if self._player:
-            await self._player.destroy()
         self.lavalink.links.pop(self.guild.id)
-        self.node.links.pop(self.guild.id)
+        if self._player and self.node:
+            self.node.links.pop(self.guild.id)
+            await self._player.destroy()
+            self._player = None
+

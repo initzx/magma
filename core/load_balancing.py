@@ -26,7 +26,6 @@ class LoadBalancer:
             total = await penalties.get_total()
             if total < record:
                 best_node = node
-
                 record = total
 
         if not best_node or not best_node.available:
@@ -35,7 +34,14 @@ class LoadBalancer:
 
     async def on_node_disconnect(self, node):
         logger.info(f"Node disconnected: {node.name}")
-        new_node = await self.determine_best_node()
+        try:
+            new_node = await self.determine_best_node()
+        except IllegalAction:
+            values = list(node.links.values())
+            for link in values:
+                await link.destroy()
+            return
+
         for link in node.links.values():
             await link.change_node(new_node)
         node.links = {}

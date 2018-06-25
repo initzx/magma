@@ -78,6 +78,9 @@ class AbstractPlayerEventAdapter(ABC):
     async def track_stuck(self, event: TrackStuckEvent):
         pass
 
+    async def destroy(self):
+        pass
+
     async def on_event(self, event):
         if not issubclass(event.__class__, Event):
             raise TypeError
@@ -99,6 +102,7 @@ class InternalEventAdapter(AbstractPlayerEventAdapter):
     """
     A default internal EventAdapter that only cares about track_end
     """
+
     async def track_pause(self, event: TrackPauseEvent):
         event.player.paused = True
 

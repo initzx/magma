@@ -72,14 +72,14 @@ class Node:
         await self._connect()
         await self.on_open()
         asyncio.ensure_future(self.listen())
-        asyncio.ensure_future(self.ping())
+        asyncio.ensure_future(self.keep_alive())
 
     async def disconnect(self):
         logger.info(f"Closing websocket connection for node: {self.name}")
         self.closing = True
         await self.ws.close()
 
-    async def ping(self):
+    async def keep_alive(self):
         """
         **THIS IS VERY IMPORTANT**
 
@@ -146,11 +146,8 @@ class Node:
 
     async def send(self, msg):
         if not self.ws or not self.ws.open:
-            try:
-                await self.connect()
-            except NodeException:
-                self.available = False
-                raise NodeException("Websocket is not ready, cannot send message")
+            self.available = False
+            raise NodeException("Websocket is not ready, cannot send message")
         await self.ws.send(json.dumps(msg))
 
     async def get_tracks(self, query):
