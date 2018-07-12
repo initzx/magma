@@ -61,22 +61,22 @@ class MusicPlayer(AbstractPlayerEventAdapter):
 
 
 class MusicPlayerManger:
-    def __init__(self, lavalink):
+    def __init__(self, lavalink, bot):
         self.lavalink = lavalink
-        self.bot = lavalink.bot
+        self.bot = bot
         self.music_players = {}
         self.bot.loop.create_task(self.lavalink.add_node("local", "ws://localhost:8080", "http://localhost:2333", "youshallnotpass"))
 
     def get_music_player(self, guild, select_if_absent=False):
         if select_if_absent and guild.id not in self.music_players:
-            self.music_players[guild.id] = MusicPlayer(self.lavalink.get_link(guild), self)
+            self.music_players[guild.id] = MusicPlayer(self.lavalink.get_link(guild.id), self)
         return self.music_players.get(guild.id)
 
 
 class Music:
     def __init__(self, bot):
         self.bot = bot
-        self.mpm = MusicPlayerManger(Lavalink(bot))
+        self.mpm = MusicPlayerManger(Lavalink("USER_ID", "SHARD_COUNT"), bot)
 
     @commands.command()
     async def play(self, ctx, *, query):

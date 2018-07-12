@@ -1,6 +1,8 @@
 import json
 
 import asyncio
+import threading
+
 import aiohttp
 import logging
 import websockets
@@ -44,6 +46,40 @@ class NodeStats:
             self.avg_frame_deficit = -1
 
 
+class KeepAlive(threading.Thread):
+    def __init__(self, node, interval, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.daemon = True
+        self.node = node
+        self.ws = node.ws
+        self.loop = node.ws.loop
+        self.interval = interval
+        self._stop_ev = threading.Event()
+
+    def run(self):
+        try:
+            while not self._stop_ev.wait(self.interval):
+                future = asyncio.run_coroutine_threadsafe(self.ws.ping(), loop=self.loop)
+                future.result()
+        except websockets.ConnectionClosed as e:
+            logger.warning(f"Connection to `{self.node.name}` was closed`! Reason: {e.code}, {e.reason}")
+            self.node.available = False
+            if self.node.closing:
+                asyncio.run_coroutine_threadsafe(self.node.on_close(e.code, e.reason), loop=self.loop)
+                return
+
+            try:
+                logger.info(f"Attempting to reconnect `{self.node.name}`")
+                future = asyncio.run_coroutine_threadsafe(self.node.connect(), loop=self.loop)
+                future.result()
+            except NodeException:
+                future = asyncio.run_coroutine_threadsafe(self.node.on_close(e.code, e.reason), loop=self.loop)
+                future.result()
+
+    def stop(self):
+        self._stop_ev.set()
+
+
 class Node:
     def __init__(self, lavalink, name, uri, rest_uri, headers):
         self.name = name
@@ -52,6 +88,7 @@ class Node:
         self.uri = uri
         self.rest_uri = rest_uri
         self.headers = headers
+        self.keep_alive = None
         self.stats = None
         self.ws = None
         self.available = False
@@ -60,6 +97,9 @@ class Node:
     async def _connect(self, try_=0):
         try:
             self.ws = await websockets.connect(self.uri, extra_headers=self.headers)
+            self.keep_alive = KeepAlive(self, 4)
+            self.keep_alive.start()
+            asyncio.ensure_future(self.listen())
         except OSError:
             if try_ < tries:
                 logger.error(f"Connection refused, trying again in {timeout}s, try: {try_+1}/{tries}")
@@ -71,15 +111,13 @@ class Node:
     async def connect(self):
         await self._connect()
         await self.on_open()
-        asyncio.ensure_future(self.listen())
-        asyncio.ensure_future(self.keep_alive())
 
     async def disconnect(self):
         logger.info(f"Closing websocket connection for node: {self.name}")
         self.closing = True
         await self.ws.close()
 
-    async def keep_alive(self):
+    async def _keep_alive(self):
         """
         **THIS IS VERY IMPORTANT**
 
@@ -120,6 +158,9 @@ class Node:
 
     async def on_close(self, code, reason):
         self.closing = False
+        if self.keep_alive:
+            self.keep_alive.stop()
+
         if not reason:
             reason = "<no reason given>"
 

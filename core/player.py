@@ -71,7 +71,7 @@ class Player:
 
         payload = {
             "op": "seek",
-            "guildId": str(self.link.guild.id),
+            "guildId": str(self.link.guild_id),
             "position": position
         }
 
@@ -87,7 +87,7 @@ class Player:
 
         payload = {
             "op": "pause",
-            "guildId": str(self.link.guild.id),
+            "guildId": str(self.link.guild_id),
             "pause": pause,
         }
 
@@ -110,7 +110,7 @@ class Player:
 
         payload = {
             "op": "volume",
-            "guildId": str(self.link.guild.id),
+            "guildId": str(self.link.guild_id),
             "volume": volume,
         }
 
@@ -127,7 +127,7 @@ class Player:
         """
         payload = {
             "op": "play",
-            "guildId": str(self.link.guild.id),
+            "guildId": str(self.link.guild_id),
             "track": track.encoded_track,
             "startTime": position,
             "paused": self.paused
@@ -145,7 +145,7 @@ class Player:
         """
         payload = {
             "op": "stop",
-            "guildId": str(self.link.guild.id),
+            "guildId": str(self.link.guild_id),
         }
 
         node = await self.link.get_node()
@@ -158,7 +158,7 @@ class Player:
         """
         payload = {
             "op": "destroy",
-            "guildId": str(self.link.guild.id),
+            "guildId": str(self.link.guild_id),
         }
         node = await self.link.get_node()
         if node.available:

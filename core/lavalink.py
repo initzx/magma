@@ -52,21 +52,18 @@ class Lavalink:
         if link:
             await link.update_voice(data)
 
-    def get_link(self, guild, bot=None):
+    def get_link(self, guild_id: int, bot=None):
         """
         Return a Link for the specified guild
-        :param guild: The guild or the guild id for the Link
+        :param guild_id: The guild id for the Link
         :param bot: The bot/shard where this was invoked
         :return: A Link
         """
-        if guild.__class__ in (str, int):  # PASSING IN DIFFERENT TYPES, REEEEEEEEEEEE, SOMEONE FIX THIS
-            return self.links.get(int(guild))
-
-        guild_id = guild.id
+        guild_id = int(guild_id)
         if guild_id not in self.links:
             if not bot:
                 raise IllegalAction("A bot instance was not passed when trying to acquire a Link!")
-            self.links[guild_id] = Link(self, guild, bot)
+            self.links[guild_id] = Link(self, guild_id, bot)
         return self.links[guild_id]
 
     async def add_node(self, name, uri, rest_uri, password):
@@ -99,9 +96,9 @@ class Lavalink:
 
 
 class Link:
-    def __init__(self, lavalink, guild, bot):
+    def __init__(self, lavalink, guild_id, bot):
         self.lavalink = lavalink
-        self.guild = guild
+        self.guild_id = guild_id
         self.bot = bot
         self.state = State.NOT_CONNECTED
         self.last_voice_update = {}
@@ -122,7 +119,7 @@ class Link:
 
     async def update_voice(self, data):
         logger.debug(f"Received voice update data: {data}")
-        if not self.guild:  # is this even necessary? :thinking:
+        if not self.guild_id:  # is this even necessary? :thinking:
             raise IllegalAction("Attempted to start audio connection with a guild that doesn't exist")
 
         if data["t"] == "VOICE_SERVER_UPDATE":
@@ -151,7 +148,6 @@ class Link:
                         "guildId": data["d"]["guild_id"]
                     }
                     await self.node.send(payload)
-                self.node = None
 
     async def get_tracks(self, query):
         """
@@ -189,7 +185,7 @@ class Link:
         :return:
         """
         self.node = node
-        self.node.links[self.guild.id] = self
+        self.node.links[self.guild_id] = self
         if self.last_voice_update:
             await node.send(self.last_voice_update)
         if self.player:
@@ -203,7 +199,7 @@ class Link:
         :return:
         """
         # We're using discord's websocket, not lavalink
-        if channel.guild != self.guild:
+        if channel.guild.id != self.guild_id:
             raise InvalidArgument("The guild of the channel isn't the the same as the link's!")
         if channel.guild.unavailable:
             raise IllegalAction("Cannot connect to guild that is unavailable!")
@@ -217,14 +213,14 @@ class Link:
         payload = {
             "op": 4,
             "d": {
-                "guild_id": channel.guild.id,
+                "guild_id": self.guild_id,
                 "channel_id": str(channel.id),
                 "self_mute": False,
                 "self_deaf": False
             }
         }
 
-        await self.bot._connection._get_websocket(channel.guild.id).send_as_json(payload)
+        await self.bot._connection._get_websocket(self.guild_id).send_as_json(payload)
 
     async def disconnect(self):
         """
@@ -236,7 +232,7 @@ class Link:
         payload = {
             "op": 4,
             "d": {
-                "guild_id": self.guild.id,
+                "guild_id": self.guild_id,
                 "channel_id": None,
                 "self_mute": False,
                 "self_deaf": False
@@ -244,12 +240,12 @@ class Link:
         }
 
         self.set_state(State.DISCONNECTING)
-        await self.bot._connection._get_websocket(self.guild.id).send_as_json(payload)
+        await self.bot._connection._get_websocket(self.guild_id).send_as_json(payload)
 
     async def destroy(self):
-        self.lavalink.links.pop(self.guild.id)
+        self.lavalink.links.pop(self.guild_id)
         if self._player and self.node:
-            self.node.links.pop(self.guild.id)
+            self.node.links.pop(self.guild_id)
             await self._player.destroy()
             self._player = None
 
