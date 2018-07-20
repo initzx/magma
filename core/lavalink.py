@@ -1,14 +1,14 @@
 import asyncio
+import logging
 from enum import Enum
 
-import logging
 from discord import InvalidArgument
 from discord.ext.commands import BotMissingPermissions
 
 from .exceptions import IllegalAction
-from .node import Node
-from .player import Player, AudioTrack
 from .load_balancing import LoadBalancer
+from .node import Node
+from .player import Player, AudioTrackPlaylist
 
 logger = logging.getLogger("magma")
 
@@ -35,7 +35,7 @@ class Lavalink:
 
     @property
     def playing_guilds(self):
-        return {name: node.stats.playing_players for name, node in self.nodes.items()}
+        return {name: node.stats.playing_players for name, node in self.nodes.items() if node.stats}
 
     @property
     def total_playing_guilds(self):
@@ -60,10 +60,11 @@ class Lavalink:
         :return: A Link
         """
         guild_id = int(guild_id)
-        if guild_id not in self.links:
-            if not bot:
-                raise IllegalAction("A bot instance was not passed when trying to acquire a Link!")
-            self.links[guild_id] = Link(self, guild_id, bot)
+
+        if guild_id in self.links or not bot:
+            return self.links.get(guild_id)
+
+        self.links[guild_id] = Link(self, guild_id, bot)
         return self.links[guild_id]
 
     async def add_node(self, name, uri, rest_uri, password):
@@ -157,8 +158,8 @@ class Link:
         :return:
         """
         node = await self.get_node(True)
-        tracks = await node.get_tracks(query)
-        return [AudioTrack(track) for track in tracks]
+        results = await node.get_tracks(query)
+        return AudioTrackPlaylist(results)
 
     async def get_tracks_yt(self, query):
         return await self.get_tracks("ytsearch:" + query)
@@ -173,7 +174,7 @@ class Link:
         :param select_if_absent: A boolean that indicates if a Node should be created if there is none
         :return: A Node
         """
-        if select_if_absent and not self.node:
+        if select_if_absent and not (self.node and self.node.available):
             await self.change_node(await self.lavalink.get_best_node())
         return self.node
 
@@ -188,8 +189,8 @@ class Link:
         self.node.links[self.guild_id] = self
         if self.last_voice_update:
             await node.send(self.last_voice_update)
-        if self.player:
-            await self.player.node_changed()
+        if self._player:
+            await self._player.node_changed()
     
     async def connect(self, channel):
         """
@@ -206,7 +207,7 @@ class Link:
 
         me = channel.guild.me
         permissions = me.permissions_in(channel)
-        if not permissions.connect and not permissions.move_members:
+        if (not permissions.connect or len(channel.members) >= channel.user_limit) and not permissions.move_members:
             raise BotMissingPermissions(["connect"])
 
         self.set_state(State.CONNECTING)

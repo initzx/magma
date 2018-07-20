@@ -66,16 +66,10 @@ class Penalties:
     async def get_total(self):
         # hard maths
         stats = self.node.stats
-        if not stats:
-            return
+        if not self.node.available or not stats:
+            return big_number
 
-        if self.lavalink:
-            # REEEEE complexity levels
-            for link in self.lavalink.links.values():
-                if self.node == await link.get_node() and link.player.current and not link.player.paused:
-                    self.player_penalty += 1
-        else:
-            self.player_penalty = stats.playing_players
+        self.player_penalty = stats.playing_players
 
         self.cpu_penalty = 1.05 ** (100 * stats.system_load) * 10 - 10
         if stats.avg_frame_deficit != -1:
@@ -83,6 +77,4 @@ class Penalties:
             self.null_frame_penalty = (1.03 ** (500 * (stats.avg_frame_nulled / 3000))) * 300 - 300
             self.null_frame_penalty *= 2
 
-        if not self.node.available or not self.node.stats:
-            return big_number
         return self.player_penalty + self.cpu_penalty + self.deficit_frame_penalty + self.null_frame_penalty

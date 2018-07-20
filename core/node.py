@@ -6,13 +6,12 @@ import threading
 import aiohttp
 import logging
 import websockets
+from discord.backoff import ExponentialBackoff
 
 from .events import TrackEndEvent, TrackStuckEvent, TrackExceptionEvent
 from .exceptions import NodeException
 
 logger = logging.getLogger("magma")
-timeout = 5
-tries = 5
 
 
 class NodeStats:
@@ -49,6 +48,7 @@ class NodeStats:
 class KeepAlive(threading.Thread):
     def __init__(self, node, interval, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.name = f"{node.name}-KeepAlive"
         self.daemon = True
         self.node = node
         self.ws = node.ws
@@ -68,13 +68,9 @@ class KeepAlive(threading.Thread):
                 asyncio.run_coroutine_threadsafe(self.node.on_close(e.code, e.reason), loop=self.loop)
                 return
 
-            try:
-                logger.info(f"Attempting to reconnect `{self.node.name}`")
-                future = asyncio.run_coroutine_threadsafe(self.node.connect(), loop=self.loop)
-                future.result()
-            except NodeException:
-                future = asyncio.run_coroutine_threadsafe(self.node.on_close(e.code, e.reason), loop=self.loop)
-                future.result()
+            logger.info(f"Attempting to reconnect `{self.node.name}`")
+            future = asyncio.run_coroutine_threadsafe(self.node.connect(), loop=self.loop)
+            future.result()
 
     def stop(self):
         self._stop_ev.set()
@@ -94,19 +90,18 @@ class Node:
         self.available = False
         self.closing = False
 
-    async def _connect(self, try_=0):
-        try:
-            self.ws = await websockets.connect(self.uri, extra_headers=self.headers)
-            self.keep_alive = KeepAlive(self, 4)
-            self.keep_alive.start()
-            asyncio.ensure_future(self.listen())
-        except OSError:
-            if try_ < tries:
-                logger.error(f"Connection refused, trying again in {timeout}s, try: {try_+1}/{tries}")
-                await asyncio.sleep(timeout)
-                await self._connect(try_+1)
-            else:
-                raise NodeException(f"Connection failed after {tries} tries")
+    async def _connect(self):
+        backoff = ExponentialBackoff(2)
+        while not (self.ws and self.ws.open):
+            try:
+                self.ws = await websockets.connect(self.uri, extra_headers=self.headers)
+                asyncio.ensure_future(self.listen())
+                self.keep_alive = KeepAlive(self, 3)
+                self.keep_alive.start()
+            except OSError:
+                delay = backoff.delay()
+                logger.error(f"Connection refused, trying again in {delay:.2f}s")
+                await asyncio.sleep(delay)
 
     async def connect(self):
         await self._connect()
@@ -153,8 +148,8 @@ class Node:
             pass  # ping() handles this for us, no need to hear it twice..
 
     async def on_open(self):
-        await self.lavalink.load_balancer.on_node_connect(self)
         self.available = True
+        await self.lavalink.load_balancer.on_node_connect(self)
 
     async def on_close(self, code, reason):
         self.closing = False
@@ -177,7 +172,8 @@ class Node:
         op = msg.get("op")
         if op == "playerUpdate":
             link = self.lavalink.get_link(msg.get("guildId"))
-            await link.player.provide_state(msg.get("state"))
+            if link:
+                await link.player.provide_state(msg.get("state"))
         elif op == "stats":
             self.stats = NodeStats(msg)
         elif op == "event":

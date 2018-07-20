@@ -1,7 +1,18 @@
+import traceback
+from enum import Enum
 from time import time
 
 from .exceptions import IllegalAction
 from .events import InternalEventAdapter, TrackPauseEvent, TrackResumeEvent, TrackStartEvent
+
+
+class LoadTypes(Enum):
+    NO_MATCHES = -2
+    LOAD_FAILED = -1
+    UNKNOWN = 0
+    TRACK_LOADED = 1
+    PLAYLIST_LOADED = 2
+    SEARCH_RESULT = 3
 
 
 class AudioTrack:
@@ -18,6 +29,25 @@ class AudioTrack:
         self.seekable = track['info']['isSeekable']
         self.duration = track['info']['length']
         self.user_data = None
+
+
+class AudioTrackPlaylist:
+    def __init__(self, results):
+        self.playlist_info = results["playlistInfo"]
+        self.playlist_name = self.playlist_info.get("name")
+        self.selected_track = self.playlist_info.get("selectedTrack")
+        self.load_type = LoadTypes[results["loadType"]]
+        self.tracks = [AudioTrack(track) for track in results["tracks"]]
+
+    def __iter__(self):
+        for track in self.tracks:
+            yield track
+
+    def __len__(self):
+        return self.tracks.__len__()
+
+    def __getitem__(self, item):
+        return self.tracks[item]
 
 
 class Player:
@@ -161,10 +191,12 @@ class Player:
             "guildId": str(self.link.guild_id),
         }
         node = await self.link.get_node()
-        if node.available:
+        if node and node.available:
             await node.send(payload)
-        await self.event_adapter.destroy()
-        self.event_adapter = None
+
+        if self.event_adapter:
+            await self.event_adapter.destroy()
+            self.event_adapter = None
 
     async def node_changed(self):
         if self.current:
@@ -173,4 +205,7 @@ class Player:
     async def trigger_event(self, event):
         await Player.internal_event_adapter.on_event(event)
         if self.event_adapter:  # If we defined our on adapter
-            await self.event_adapter.on_event(event)
+            try:
+                await self.event_adapter.on_event(event)
+            except:
+                traceback.print_exc()
