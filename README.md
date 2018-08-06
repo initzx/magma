@@ -4,7 +4,8 @@ A Lavalink connector written in Python, translated from Fre_d's Java Lavalink cl
 Magma is the best Python Lavalink connector right now, as it is flawlessly incorporated into Himebot, a music bot with over 160k servers.
  
 ### Requirements:
-* discord.py, rewrite (any other versions should work just fine)
+* Lavalink v3
+* discord.py, rewrite (any other version should work just fine)
 * asyncio
 * websockets
 * aiohttp
