@@ -15,14 +15,13 @@ from setuptools import find_packages, setup, Command
 NAME = 'lavalink-magma'
 DESCRIPTION = 'The Python connector for Lavalink'
 URL = 'https://github.com/initzx/magma'
-EMAIL = ''  # TODO
 AUTHOR = 'init0'
-REQUIRES_PYTHON = ''  # TODO
-VERSION = '0.0.1'
+REQUIRES_PYTHON = '3.6'  # TODO
+VERSION = 'v3'
 
 # What packages are required for this module to be executed?
 REQUIRED = [
-    # 'requests', 'maya', 'records',
+    "discord.py"  # rewrite
 ]
 
 # The rest you shouldn't have to touch too much :)

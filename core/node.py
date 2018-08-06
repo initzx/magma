@@ -185,6 +185,7 @@ class Node:
         if not self.ws or not self.ws.open:
             self.available = False
             raise NodeException("Websocket is not ready, cannot send message")
+        logger.debug(f"Sending websocket message: {msg}")
         await self.ws.send(json.dumps(msg))
 
     async def get_tracks(self, query):

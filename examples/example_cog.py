@@ -19,7 +19,7 @@ class MusicPlayer(AbstractPlayerEventAdapter):
         self.player.event_adapter = self
 
     async def search(self, query):
-        return await self.link.get_tracks(query)
+        return await self.link.get_tracks_yt(query)
 
     async def add_track(self, track):
         if not self.current:
@@ -66,6 +66,7 @@ class MusicPlayerManger:
         self.bot = bot
         self.music_players = {}
         self.bot.loop.create_task(self.lavalink.add_node("local", "ws://localhost:8080", "http://localhost:2333", "youshallnotpass"))
+        self.bot.add_listener(self.lavalink.on_socket_response)
 
     def get_music_player(self, guild, select_if_absent=False):
         if select_if_absent and guild.id not in self.music_players:

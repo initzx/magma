@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import time
 from enum import Enum
 
 from discord import InvalidArgument
@@ -207,7 +208,7 @@ class Link:
 
         me = channel.guild.me
         permissions = me.permissions_in(channel)
-        if (not permissions.connect or len(channel.members) >= channel.user_limit) and not permissions.move_members:
+        if (not permissions.connect or len(channel.members) >= channel.user_limit >= 1) and not permissions.move_members:
             raise BotMissingPermissions(["connect"])
 
         self.set_state(State.CONNECTING)
@@ -220,8 +221,13 @@ class Link:
                 "self_deaf": False
             }
         }
-
         await self.bot._connection._get_websocket(self.guild_id).send_as_json(payload)
+
+        start = time.monotonic()
+        while not (me.voice and me.voice.channel):
+            await asyncio.sleep(0.1)
+            if start-time.monotonic() >= 10:
+                raise IllegalAction("Couldn't connect to the channel within a reasonable timeframe!")
 
     async def disconnect(self):
         """
