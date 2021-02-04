@@ -2,13 +2,16 @@ import asyncio
 import logging
 import time
 from enum import Enum
+from typing import Optional
 
 from discord import InvalidArgument
+from discord.ext import commands
 from discord.ext.commands import BotMissingPermissions
+from discord.gateway import DiscordWebSocket
 
 from .exceptions import IllegalAction
 from .load_balancing import LoadBalancer
-from .node import Node
+from .nodeaio import Node
 from .player import Player, AudioTrackPlaylist
 
 logger = logging.getLogger("magma")
@@ -26,7 +29,6 @@ class State(Enum):
 
 class Lavalink:
     def __init__(self, user_id, shard_count):
-
         self.user_id = user_id
         self.shard_count = shard_count
         self.loop = asyncio.get_event_loop()
@@ -68,13 +70,13 @@ class Lavalink:
         self.links[guild_id] = Link(self, guild_id, bot)
         return self.links[guild_id]
 
-    async def add_node(self, name, uri, rest_uri, password):
+    async def add_node(self, name, host, port, password):
         """
         Add a Lavalink node
 
         :param name: The name of the node
-        :param uri: The web socket URI of the node, ("ws://localhost:80")
-        :param rest_uri: The REST URI of the node, ("http://localhost:2333")
+        :param host: The web socket URI of the node, ("localhost")
+        :param port: The REST URI of the node, ("2333")
         :param password: The password to connect to the node
         :return: A node
         """
@@ -84,7 +86,7 @@ class Lavalink:
             "User-Id": self.user_id
         }
 
-        node = Node(self, name, uri, rest_uri, headers)
+        node = Node(self, name, host, port, headers)
         await node.connect()
         self.nodes[name] = node
 
@@ -144,12 +146,20 @@ class Link:
             self.last_session_id = data["d"]["session_id"]
             if not channel_id and self.state != State.DESTROYED:
                 self.state = State.NOT_CONNECTED
-                if self.node:
-                    payload = {
-                        "op": "destroy",
-                        "guildId": data["d"]["guild_id"]
-                    }
-                    await self.node.send(payload)
+                # if self.node:
+                #     print('detroying')
+                #     await self.destroy()
+                #     print('destroyed')
+
+    def _get_shard_socket(self, shard_id: int) -> Optional[DiscordWebSocket]:
+        if isinstance(self.bot, commands.AutoShardedBot):
+            try:
+                return self.bot.shards[shard_id].ws
+            except AttributeError:
+                return self.bot.shards[shard_id]._parent.ws
+
+        if self.bot.shard_id is None or self.bot.shard_id == shard_id:
+            return self.bot.ws
 
     async def get_tracks(self, query):
         """
@@ -175,7 +185,7 @@ class Link:
         :param select_if_absent: A boolean that indicates if a Node should be created if there is none
         :return: A Node
         """
-        if select_if_absent and not (self.node and self.node.available):
+        if select_if_absent and not (self.node and self.node.connected):
             await self.change_node(await self.lavalink.get_best_node())
         return self.node
 
@@ -212,16 +222,17 @@ class Link:
             raise BotMissingPermissions(["connect"])
 
         self.set_state(State.CONNECTING)
-        payload = {
-            "op": 4,
-            "d": {
-                "guild_id": self.guild_id,
-                "channel_id": str(channel.id),
-                "self_mute": False,
-                "self_deaf": False
-            }
-        }
-        await self.bot._connection._get_websocket(self.guild_id).send_as_json(payload)
+        # payload = {
+        #     "op": 4,
+        #     "d": {
+        #         "guild_id": self.guild_id,
+        #         "channel_id": str(channel.id),
+        #         "self_mute": False,
+        #         "self_deaf": False
+        #     }
+        # }
+        # await self.bot._connection._get_websocket(self.guild_id).send_as_json(payload)
+        await self._get_shard_socket(self.bot.shard_id).voice_state(self.guild_id, str(channel.id))
 
         start = time.monotonic()
         while not (me.voice and me.voice.channel):
@@ -236,18 +247,18 @@ class Link:
         :return:
         """
         # We're using discord's websocket, no lavalink
-        payload = {
-            "op": 4,
-            "d": {
-                "guild_id": self.guild_id,
-                "channel_id": None,
-                "self_mute": False,
-                "self_deaf": False
-            }
-        }
-
+        # payload = {
+        #     "op": 4,
+        #     "d": {
+        #         "guild_id": self.guild_id,
+        #         "channel_id": None,
+        #         "self_mute": False,
+        #         "self_deaf": False
+        #     }
+        # }
+        #
         self.set_state(State.DISCONNECTING)
-        await self.bot._connection._get_websocket(self.guild_id).send_as_json(payload)
+        await self._get_shard_socket(self.bot.shard_id).voice_state(self.guild_id, None)
 
     async def destroy(self):
         self.lavalink.links.pop(self.guild_id)
@@ -255,4 +266,3 @@ class Link:
             self.node.links.pop(self.guild_id)
             await self._player.destroy()
             self._player = None
-

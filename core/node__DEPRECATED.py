@@ -8,7 +8,7 @@ import logging
 import websockets
 from discord.backoff import ExponentialBackoff
 
-from .events import TrackEndEvent, TrackStuckEvent, TrackExceptionEvent
+from .events import TrackEndEvent, TrackStuckEvent, TrackExceptionEvent, TrackStartEvent
 from .exceptions import NodeException
 
 logger = logging.getLogger("magma")
@@ -77,12 +77,10 @@ class KeepAlive(threading.Thread):
 
 
 class Node:
-    def __init__(self, lavalink, name, uri, rest_uri, headers):
+    def __init__(self, lavalink, name, host, port, headers):
         self.name = name
         self.lavalink = lavalink
         self.links = {}
-        self.uri = uri
-        self.rest_uri = rest_uri
         self.headers = headers
         self.keep_alive = None
         self.stats = None
@@ -90,14 +88,19 @@ class Node:
         self.available = False
         self.closing = False
 
+        self.uri = f"ws://{host}:{port}"
+        self.rest_uri = f"http://{host}:{port}"
+
     async def _connect(self):
         backoff = ExponentialBackoff(2)
         while not (self.ws and self.ws.open):
             try:
                 self.ws = await websockets.connect(self.uri, extra_headers=self.headers)
-                asyncio.ensure_future(self.listen())
+                task = asyncio.create_task(self.listen())
+                # asyncio.create_task(hello())
                 self.keep_alive = KeepAlive(self, 3)
                 self.keep_alive.start()
+                # await task
             except OSError:
                 delay = backoff.delay()
                 logger.error(f"Connection refused, trying again in {delay:.2f}s")
@@ -143,6 +146,7 @@ class Node:
         try:
             while True:
                 msg = await self.ws.recv()
+                logger.debug(f"Received websocket message from `{self.name}`: {msg}")
                 await self.on_message(json.loads(msg))
         except websockets.ConnectionClosed:
             pass  # ping() handles this for us, no need to hear it twice..
@@ -151,7 +155,7 @@ class Node:
         self.available = True
         await self.lavalink.load_balancer.on_node_connect(self)
 
-    async def on_close(self, code, reason):
+    async def on_close(self, code=None, reason=None):
         self.closing = False
         if self.keep_alive:
             self.keep_alive.stop()
@@ -168,7 +172,6 @@ class Node:
 
     async def on_message(self, msg):
         # We receive Lavalink responses here
-        logger.debug(f"Received websocket message from `{self.name}`: {msg}")
         op = msg.get("op")
         if op == "playerUpdate":
             link = self.lavalink.get_link(msg.get("guildId"))
@@ -208,12 +211,18 @@ class Node:
 
         if event_type == "TrackEndEvent":
             event = TrackEndEvent(player, player.current, msg.get("reason"))
+        elif event_type == "TrackStartEvent":
+            event = TrackStartEvent(player, player.current)
         elif event_type == "TrackExceptionEvent":
             event = TrackExceptionEvent(player, player.current, msg.get("error"))
         elif event_type == "TrackStuckEvent":
             event = TrackStuckEvent(player, player.current, msg.get("thresholdMs"))
+        elif event_type == "WebSocketClosedEvent":
+            if msg.get("code") == 4006 and msg.get("byRemote"):
+                await link.destroy()
+
         elif event_type:
-            logger.info(f"Received unknown event: {event}")
+            logger.info(f"Received unknown event: {event_type}")
 
         if event:
             await player.trigger_event(event)

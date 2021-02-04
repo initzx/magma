@@ -8,5 +8,5 @@ from .exceptions import *
 from .lavalink import *
 from .player import *
 from .miscellaneous import *
-from .node import *
+from .nodews import *
 

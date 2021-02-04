@@ -1,9 +1,12 @@
 
-class IllegalAction(Exception):
+class LavalinkException(Exception):
     def __init__(self, msg):
-        super().__init__(msg)
+        self.msg = msg
 
 
-class NodeException(Exception):
-    def __init__(self, msg):
-        super().__init__(msg)
+class IllegalAction(LavalinkException):
+    pass
+
+
+class NodeException(LavalinkException):
+    pass

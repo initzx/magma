@@ -15,6 +15,15 @@ class LoadTypes(Enum):
     SEARCH_RESULT = 3
 
 
+class BassModes(Enum):
+    OFF = "off"
+    LOW = "low"
+    MEDIUM = "medium"
+    HIGH = "high"
+    EXTREME = "extreme"
+    SICKO = "SICKO"
+
+
 class AudioTrack:
     """
     The base AudioTrack class that is used by the player to play songs
@@ -33,11 +42,22 @@ class AudioTrack:
 
 class AudioTrackPlaylist:
     def __init__(self, results):
-        self.playlist_info = results["playlistInfo"]
-        self.playlist_name = self.playlist_info.get("name")
-        self.selected_track = self.playlist_info.get("selectedTrack")
-        self.load_type = LoadTypes[results["loadType"]]
-        self.tracks = [AudioTrack(track) for track in results["tracks"]]
+        try:
+            self.playlist_info = results["playlistInfo"]
+            self.playlist_name = self.playlist_info.get("name")
+            self.selected_track = self.playlist_info.get("selectedTrack")
+            self.load_type = LoadTypes[results["loadType"]]
+            self.tracks = [AudioTrack(track) for track in results["tracks"]]
+        except KeyError:
+            raise IllegalAction(f"Results invalid!, received: {results}")
+
+    @property
+    def is_playlist(self):
+        return self.load_type.value == 2 and self.__len__() > 1
+
+    @property
+    def is_empty(self):
+        return self.load_type.value < 0 or self.__len__() == 0
 
     def __iter__(self):
         for track in self.tracks:
@@ -50,6 +70,26 @@ class AudioTrackPlaylist:
         return self.tracks[item]
 
 
+class Equalizer:
+    def __init__(self, options):
+        self.__slots__ = tuple(mode.value for mode in options.keys())
+        for k, v in options.items():
+            setattr(self, k.value, v)
+
+    @classmethod
+    def bassboost(cls):
+        return cls(
+            {
+                BassModes.OFF: [(0, 0), (1, 0)],
+                BassModes.LOW: [(0, 0.25), (1, 0.15)],
+                BassModes.MEDIUM: [(0, 0.50), (1, 0.25)],
+                BassModes.HIGH: [(0, 0.75), (1, 0.50)],
+                BassModes.EXTREME: [(0, 1), (1, 0.75)],
+                BassModes.SICKO: [(0, 1), (1, 1)],
+            }
+        )
+
+
 class Player:
     internal_event_adapter = InternalEventAdapter()
 
@@ -59,6 +99,8 @@ class Player:
         self.event_adapter = None
         self.paused = False
         self.volume = 100
+        self.equalizer = {band: 0 for band in range(15)}
+        self.bass_mode = BassModes.OFF
         self.update_time = -1
         self._position = -1
 
@@ -148,11 +190,56 @@ class Player:
         await node.send(payload)
         self.volume = volume
 
-    async def play(self, track, position=0):
+    async def set_eq(self, gains_list):
+        """
+        Sets gain for multiple bands
+        :param gains_list: a list of tuples in (band, gain) order.
+        :return:
+        """
+        bands = []
+        for band, gain in gains_list:
+
+            if not -1 < band < 15:
+                continue
+
+            gain = max(min(float(gain), 1.0), -0.25)
+            bands.append({"band": band, "gain": gain})
+            self.equalizer[band] = gain
+
+        payload = {
+            "op": "equalizer",
+            "guildId": str(self.link.guild_id),
+            "bands": bands
+        }
+
+        node = await self.link.get_node()
+        await node.send(payload)
+
+    async def set_gain(self, band, gain):
+        """
+        Sets the gain for 1 band
+        :param band: a band from 0 to 14
+        :param gain: a value from -0.25 to 1
+        :return:
+        """
+        await self.set_eq((band, gain))
+
+    async def set_bass(self, bass_mode):
+        """
+        Sets which bass mode the player is in
+        :param bass_mode: an BassModes enum value
+        :return:
+        """
+        gains = Equalizer.bassboost().__dict__[bass_mode.value]
+        self.bass_mode = bass_mode
+        await self.set_eq(gains)
+
+    async def play(self, track, position=0, no_replace=True):
         """
         Sends a request to the Lavalink node to play an AudioTrack
         :param track: The AudioTrack to play
         :param position: Optional; the position to start the song at
+        :param no_replace: if the current track should NOT be replaced
         :return:
         """
         payload = {
@@ -160,13 +247,13 @@ class Player:
             "guildId": str(self.link.guild_id),
             "track": track.encoded_track,
             "startTime": position,
-            "paused": self.paused
+            "noReplace": no_replace
         }
         node = await self.link.get_node(True)
         await node.send(payload)
         self.update_time = time()*1000
         self.current = track
-        await self.trigger_event(TrackStartEvent(self, track))
+        # await self.trigger_event(TrackStartEvent(self, track))
 
     async def stop(self):
         """
@@ -191,7 +278,7 @@ class Player:
             "guildId": str(self.link.guild_id),
         }
         node = await self.link.get_node()
-        if node and node.available:
+        if node and node.connected:
             await node.send(payload)
 
         if self.event_adapter:
@@ -201,6 +288,12 @@ class Player:
     async def node_changed(self):
         if self.current:
             await self.play(self.current, self._position)
+
+            if self.paused:
+                await self.set_paused(True)
+
+        if self.volume != 100:
+            await self.set_volume(self.volume)
 
     async def trigger_event(self, event):
         await Player.internal_event_adapter.on_event(event)

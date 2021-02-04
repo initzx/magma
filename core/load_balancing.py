@@ -28,20 +28,13 @@ class LoadBalancer:
                 best_node = node
                 record = total
 
-        if not best_node or not best_node.available:
+        if not best_node or not best_node.connected:
             raise IllegalAction(f"No available nodes! record: {record}")
         return best_node
 
     async def on_node_disconnect(self, node):
         logger.info(f"Node disconnected: {node.name}")
-        try:
-            new_node = await self.determine_best_node()
-        except IllegalAction:
-            values = list(node.links.values())
-            for link in values:
-                await link.destroy()
-            return
-
+        new_node = await self.determine_best_node()
         for link in node.links.values():
             await link.change_node(new_node)
         node.links = {}
@@ -49,7 +42,7 @@ class LoadBalancer:
     async def on_node_connect(self, node):
         logger.info(f"Node connected: {node.name}")
         for link in self.lavalink.links.values():
-            if not await link.get_node() or not link.node.available:
+            if link.node is node or not link.node or not link.node.connected:
                 await link.change_node(node)
 
 
@@ -66,7 +59,7 @@ class Penalties:
     async def get_total(self):
         # hard maths
         stats = self.node.stats
-        if not self.node.available or not stats:
+        if not self.node.connected or not stats:
             return big_number
 
         self.player_penalty = stats.playing_players
